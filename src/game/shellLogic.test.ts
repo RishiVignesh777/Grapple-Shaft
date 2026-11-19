@@ -1,0 +1,86 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  MAX_FRAME_DT,
+  clampDeltaTime,
+  computeParallaxOffset,
+  computeVirtualViewport,
+  createInitialShellState,
+  createStarfield,
+  stepShellState,
+} from './shellLogic';
+import {
+  resolveInitialScreenState,
+  transitionGameState,
+} from './stateMachine';
+
+test('clampDeltaTime clamps spikes to MAX_FRAME_DT and rejects non-positive/NaN', () => {
+  assert.equal(clampDeltaTime(0.016), 0.016);
+  assert.equal(clampDeltaTime(0.5), MAX_FRAME_DT);
+  assert.equal(clampDeltaTime(-1), 0);
+  assert.equal(clampDeltaTime(Number.NaN), 0);
+});
+
+test('computeVirtualViewport produces integer pixel scale and crisp dimensions', () => {
+  const desktop = computeVirtualViewport(1440, 900);
+  assert.equal(Number.isInteger(desktop.pixelScale), true);
+  assert.ok(desktop.pixelScale >= 3);
+  assert.ok(desktop.virtualWidth <= 480);
+
+  const mobile = computeVirtualViewport(390, 844);
+  assert.equal(Number.isInteger(mobile.pixelScale), true);
+  assert.ok(mobile.virtualWidth >= 160);
+});
+
+test('createStarfield is deterministic for identical seeds', () => {
+  const a = createStarfield(1337, 30, 320, 240);
+  const b = createStarfield(1337, 30, 320, 240);
+  assert.deepEqual(a, b);
+  assert.equal(a.length, 30);
+});
+
+test('computeParallaxOffset wraps cleanly across tile boundaries', () => {
+  const pos = computeParallaxOffset(100, 200, 0.25, 32, 32);
+  assert.equal(pos.x, 25);
+  assert.equal(pos.y, 18);
+
+  const neg = computeParallaxOffset(-40, -16, 0.5, 32, 32);
+  assert.equal(neg.x, 12);
+  assert.equal(neg.y, 24);
+});
+
+test('stepShellState advances camera parallax while keeping placeholder player stationary', () => {
+  const state = createInitialShellState();
+  const initialPlayer = { ...state.player };
+
+  stepShellState(state, 0.016, 'playing');
+  stepShellState(state, 0.016, 'playing');
+
+  assert.ok(state.elapsedTime > 0);
+  assert.notEqual(state.camera.y, 0);
+  assert.deepEqual(state.player, initialPlayer);
+});
+
+test('stepShellState freezes simulation while paused', () => {
+  const state = createInitialShellState();
+  stepShellState(state, 0.016, 'playing');
+  const snapshotTime = state.elapsedTime;
+  const snapshotCam = { ...state.camera };
+
+  stepShellState(state, 0.016, 'paused');
+  assert.equal(state.elapsedTime, snapshotTime);
+  assert.deepEqual(state.camera, snapshotCam);
+});
+
+test('state machine resolves ?autostart=1 and handles transitions cleanly', () => {
+  assert.equal(resolveInitialScreenState(''), 'title');
+  assert.equal(resolveInitialScreenState('?autostart=1'), 'playing');
+
+  assert.equal(transitionGameState('title', 'START'), 'playing');
+  assert.equal(transitionGameState('playing', 'PAUSE'), 'paused');
+  assert.equal(transitionGameState('paused', 'RESUME'), 'playing');
+  assert.equal(transitionGameState('playing', 'TOGGLE_PAUSE'), 'paused');
+  assert.equal(transitionGameState('paused', 'TOGGLE_PAUSE'), 'playing');
+  assert.equal(transitionGameState('title', 'TOGGLE_PAUSE'), 'title');
+  assert.equal(transitionGameState('paused', 'RETURN_TITLE'), 'title');
+});

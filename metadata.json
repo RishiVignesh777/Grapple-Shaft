@@ -1,0 +1,6 @@
+{
+  "name": "Grapple Shaft",
+  "description": "A 2D retro pixel-art sci-fi platformer set in a deep space facility.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

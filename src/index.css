@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #0a0e14;
+    font-family: "Chakra Petch", system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+}
+
+.font-pixel {
+  font-family: "Silkscreen", monospace;
+}
+
+.font-ui {
+  font-family: "Chakra Petch", system-ui, sans-serif;
+}
+
+.font-code {
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.pixelated-canvas {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-crisp-edges;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+@keyframes titlePulseGlow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px rgba(57, 255, 143, 0.45))
+      drop-shadow(0 0 22px rgba(39, 224, 255, 0.25));
+    transform: translateY(0px);
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(57, 255, 143, 0.85))
+      drop-shadow(0 0 38px rgba(39, 224, 255, 0.55));
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes promptPulse {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-title-glow {
+  animation: titlePulseGlow 2.6s ease-in-out infinite;
+}
+
+.animate-prompt-pulse {
+  animation: promptPulse 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-title-glow,
+  .animate-prompt-pulse {
+    animation: none;
+  }
+}
