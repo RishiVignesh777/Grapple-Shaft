@@ -49,25 +49,36 @@ test('computeParallaxOffset wraps cleanly across tile boundaries', () => {
   assert.equal(neg.y, 24);
 });
 
-test('stepShellState advances camera parallax while keeping placeholder player stationary', () => {
+test('stepShellState keeps player stationary on title and moves player with input while playing', () => {
   const state = createInitialShellState();
-  const initialPlayer = { ...state.player };
+  const spawnX = state.player.x;
+  const viewport = computeVirtualViewport(1440, 900);
 
-  stepShellState(state, 0.016, 'playing');
-  stepShellState(state, 0.016, 'playing');
-
+  stepShellState(state, 0.016, 'title', viewport);
+  assert.equal(state.player.x, spawnX);
   assert.ok(state.elapsedTime > 0);
-  assert.notEqual(state.camera.y, 0);
-  assert.deepEqual(state.player, initialPlayer);
+
+  stepShellState(state, 0.016, 'playing', viewport, {
+    left: false,
+    right: true,
+    jumpJustPressed: false,
+  });
+  stepShellState(state, 0.016, 'playing', viewport, {
+    left: false,
+    right: true,
+    jumpJustPressed: false,
+  });
+  assert.ok(state.player.x > spawnX);
 });
 
 test('stepShellState freezes simulation while paused', () => {
   const state = createInitialShellState();
-  stepShellState(state, 0.016, 'playing');
+  const viewport = computeVirtualViewport(1440, 900);
+  stepShellState(state, 0.016, 'playing', viewport);
   const snapshotTime = state.elapsedTime;
   const snapshotCam = { ...state.camera };
 
-  stepShellState(state, 0.016, 'paused');
+  stepShellState(state, 0.016, 'paused', viewport);
   assert.equal(state.elapsedTime, snapshotTime);
   assert.deepEqual(state.camera, snapshotCam);
 });

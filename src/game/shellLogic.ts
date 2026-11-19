@@ -1,6 +1,17 @@
 import { PALETTE } from './palette';
+import {
+  LAVA_TOP_Y,
+  LEVEL_HEIGHT,
+  LEVEL_WIDTH,
+  computeTargetCamera,
+  createInitialPlayer,
+  createTestPlatforms,
+  stepPlayerPhysics,
+  updateCameraFollow,
+} from './physics';
 import type {
   GameScreenState,
+  PlayerInputState,
   ShellSimulationState,
   Star,
   ViewportMetrics,
@@ -10,6 +21,12 @@ export const MAX_FRAME_DT = 0.05;
 export const STAR_TILE_WIDTH = 360;
 export const STAR_TILE_HEIGHT = 240;
 export const PANEL_GRID_SIZE = 32;
+
+const EMPTY_INPUT: PlayerInputState = {
+  left: false,
+  right: false,
+  jumpJustPressed: false,
+};
 
 export function clampDeltaTime(rawDtSeconds: number): number {
   if (!Number.isFinite(rawDtSeconds) || rawDtSeconds <= 0) {
@@ -25,8 +42,6 @@ export function computeVirtualViewport(
   const safeW = Math.max(1, Math.floor(cssWidth));
   const safeH = Math.max(1, Math.floor(cssHeight));
 
-  // Choose an integer pixel scale so every pixel stays crisp and blocky
-  // across desktop (1440x900 -> scale 4 -> 360x225) and mobile (390x844 -> scale 2 -> 195x422).
   const rawScale = Math.min(safeW / 320, safeH / 180);
   const pixelScale = Math.max(2, Math.min(5, Math.floor(rawScale) || 2));
 
@@ -102,19 +117,26 @@ export function computeParallaxOffset(
 }
 
 export function createInitialShellState(): ShellSimulationState {
+  const player = createInitialPlayer();
+  const bounds = {
+    width: LEVEL_WIDTH,
+    height: LEVEL_HEIGHT,
+    lavaTopY: LAVA_TOP_Y,
+  };
   return {
     elapsedTime: 0,
     panelScrollY: 0,
-    camera: { x: 0, y: 0 },
-    player: {
-      // Stationary placeholder square: zero velocity, fixed bay position
-      xOffset: 0,
-      yFromFloor: 0,
-      size: 16,
+    camera: {
+      x: (LEVEL_WIDTH - 360) / 2,
+      y: LEVEL_HEIGHT - 225,
     },
+    player,
+    platforms: createTestPlatforms(),
+    bounds,
     stars: createStarfield(2026, 48, STAR_TILE_WIDTH, STAR_TILE_HEIGHT),
     starTileWidth: STAR_TILE_WIDTH,
     starTileHeight: STAR_TILE_HEIGHT,
+    cameraInitialized: false,
   };
 }
 
@@ -122,9 +144,21 @@ export function stepShellState(
   state: ShellSimulationState,
   rawDtSeconds: number,
   screenState: GameScreenState,
+  viewport?: ViewportMetrics,
+  input: PlayerInputState = EMPTY_INPUT,
 ): void {
   if (screenState === 'paused') {
     return;
+  }
+
+  const vw = viewport?.virtualWidth ?? 360;
+  const vh = viewport?.virtualHeight ?? 225;
+
+  if (!state.cameraInitialized) {
+    const initialCam = computeTargetCamera(state.player, vw, vh, state.bounds);
+    state.camera.x = initialCam.x;
+    state.camera.y = initialCam.y;
+    state.cameraInitialized = true;
   }
 
   const dt = clampDeltaTime(rawDtSeconds);
@@ -134,14 +168,17 @@ export function stepShellState(
 
   state.elapsedTime += dt;
 
-  // Faint continuous shaft descent scroll for background grid depth
-  const scrollRate = screenState === 'title' ? 14 : 9;
-  state.panelScrollY = (state.panelScrollY + scrollRate * dt) % 4096;
+  if (screenState === 'title') {
+    // Keep title screen's gentle scenic background scroll with stationary player
+    state.panelScrollY = (state.panelScrollY + 14 * dt) % 4096;
+    const baseCam = computeTargetCamera(state.player, vw, vh, state.bounds);
+    state.camera.x = baseCam.x + Math.sin(state.elapsedTime * 0.42) * 14;
+    state.camera.y = baseCam.y;
+    return;
+  }
 
-  // Gentle camera drift that drives parallax offsets between starfield, panel-grid, and foreground
-  const swayAmpX = screenState === 'title' ? 22 : 12;
-  const swayAmpY = screenState === 'title' ? 12 : 6;
-  state.camera.x = Math.sin(state.elapsedTime * 0.42) * swayAmpX;
-  state.camera.y =
-    Math.cos(state.elapsedTime * 0.31) * swayAmpY + state.panelScrollY;
+  // Playing state: subtle ambient panel drift + real platformer physics & clamped smooth camera
+  state.panelScrollY = (state.panelScrollY + 6 * dt) % 4096;
+  stepPlayerPhysics(state.player, input, state.platforms, state.bounds, dt);
+  updateCameraFollow(state.camera, state.player, vw, vh, state.bounds, dt);
 }

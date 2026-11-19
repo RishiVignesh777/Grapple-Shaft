@@ -21,12 +21,35 @@ export interface Star {
   twinkleSpeed: number;
 }
 
-export interface PlayerPlaceholder {
-  /** Normalized horizontal offset relative to shaft center (0 = center) */
-  xOffset: number;
-  /** Vertical offset above the placeholder bay floor in virtual pixels */
-  yFromFloor: number;
-  size: number;
+export interface PlatformRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  kind?: 'pad' | 'wall' | 'platform' | 'block';
+}
+
+export interface PlayerBody {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  vx: number;
+  vy: number;
+  grounded: boolean;
+  facing: 1 | -1;
+}
+
+export interface PlayerInputState {
+  left: boolean;
+  right: boolean;
+  jumpJustPressed: boolean;
+}
+
+export interface LevelBounds {
+  width: number;
+  height: number;
+  lavaTopY: number;
 }
 
 export interface ViewportMetrics {
@@ -41,8 +64,11 @@ export interface ShellSimulationState {
   elapsedTime: number;
   panelScrollY: number;
   camera: CameraState;
-  player: PlayerPlaceholder;
+  player: PlayerBody;
+  platforms: PlatformRect[];
+  bounds: LevelBounds;
   stars: Star[];
   starTileWidth: number;
   starTileHeight: number;
+  cameraInitialized: boolean;
 }
