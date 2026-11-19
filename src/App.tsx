@@ -8,7 +8,7 @@ import {
   resolveInitialScreenState,
   transitionGameState,
 } from './game/stateMachine';
-import type { GameScreenState } from './game/types';
+import type { GameScreenState, ZoneName } from './game/types';
 
 export default function App() {
   const [screenState, setScreenState] = useState<GameScreenState>(() =>
@@ -17,6 +17,7 @@ export default function App() {
     ),
   );
   const [muted, setMuted] = useState<boolean>(false);
+  const [zoneLabel, setZoneLabel] = useState<ZoneName>('ACCESS CORRIDOR');
   const [zoneLabelVisible, setZoneLabelVisible] = useState<boolean>(false);
   const keysPressedRef = useRef<Set<string>>(new Set());
   const zoneEnteredRef = useRef<boolean>(false);
@@ -26,11 +27,12 @@ export default function App() {
     document.body.dataset.state = screenState;
   }, [screenState]);
 
-  const triggerZoneBanner = useCallback(() => {
+  const triggerZoneBanner = useCallback((zone: ZoneName) => {
     if (zoneTimerRef.current !== null) {
       window.clearTimeout(zoneTimerRef.current);
       zoneTimerRef.current = null;
     }
+    setZoneLabel(zone);
     setZoneLabelVisible(true);
     zoneTimerRef.current = window.setTimeout(() => {
       setZoneLabelVisible(false);
@@ -41,9 +43,8 @@ export default function App() {
   useEffect(() => {
     if (screenState === 'playing' && !zoneEnteredRef.current) {
       zoneEnteredRef.current = true;
-      // Short frame delay ensures CSS opacity transition fades in smoothly
       const enterRaf = window.requestAnimationFrame(() => {
-        triggerZoneBanner();
+        triggerZoneBanner('ACCESS CORRIDOR');
       });
       return () => window.cancelAnimationFrame(enterRaf);
     }
@@ -156,13 +157,14 @@ export default function App() {
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#0a0e14]">
-      <GameCanvas screenState={screenState} />
+      <GameCanvas screenState={screenState} onZoneEnter={triggerZoneBanner} />
 
       {screenState === 'title' && <TitleOverlay onStart={handleStart} />}
 
       {screenState === 'playing' && (
         <PlayingHud
           muted={muted}
+          zoneLabel={zoneLabel}
           zoneLabelVisible={zoneLabelVisible}
           onToggleMute={handleToggleMute}
           onPause={handlePause}

@@ -1,5 +1,8 @@
+import type { ZoneName } from '../game/types';
+
 interface PlayingHudProps {
   muted: boolean;
+  zoneLabel: ZoneName;
   zoneLabelVisible: boolean;
   onToggleMute: () => void;
   onPause: () => void;
@@ -7,6 +10,7 @@ interface PlayingHudProps {
 
 export function PlayingHud({
   muted,
+  zoneLabel,
   zoneLabelVisible,
   onToggleMute,
   onPause,
@@ -133,7 +137,7 @@ export function PlayingHud({
           style={{ boxShadow: '0 2px 12px rgba(10, 14, 20, 0.7)' }}
         >
           <span className="font-pixel text-xs font-bold tracking-[0.2em] text-[#39ff8f] sm:text-sm">
-            ACCESS CORRIDOR
+            {zoneLabel}
           </span>
         </div>
       </div>

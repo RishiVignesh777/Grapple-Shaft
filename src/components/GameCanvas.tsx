@@ -6,24 +6,57 @@ import {
   stepShellState,
 } from '../game/shellLogic';
 import { soundEngine } from '../game/sound';
-import type { GameScreenState, PlayerInputState } from '../game/types';
+import type {
+  GameScreenState,
+  PlayerInputState,
+  ViewportMetrics,
+  ZoneName,
+} from '../game/types';
 
 interface GameCanvasProps {
   screenState: GameScreenState;
+  onZoneEnter?: (zone: ZoneName) => void;
 }
 
-export function GameCanvas({ screenState }: GameCanvasProps) {
+export function screenToVirtual(
+  clientX: number,
+  clientY: number,
+  rect: DOMRect,
+  viewport: ViewportMetrics,
+): { vx: number; vy: number } {
+  if (rect.width <= 0 || rect.height <= 0) {
+    return { vx: -9999, vy: -9999 };
+  }
+  const vx = ((clientX - rect.left) / rect.width) * viewport.virtualWidth;
+  const vy = ((clientY - rect.top) / rect.height) * viewport.virtualHeight;
+  return { vx, vy };
+}
+
+export function GameCanvas({ screenState, onZoneEnter }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const screenStateRef = useRef<GameScreenState>(screenState);
+  const onZoneEnterRef = useRef(onZoneEnter);
   const simStateRef = useRef(createInitialShellState());
   const heldKeysRef = useRef<Set<string>>(new Set());
   const jumpQueuedRef = useRef<boolean>(false);
+  const mouseDownRef = useRef<boolean>(false);
+  const mouseJustPressedRef = useRef<boolean>(false);
+  const mouseClientPosRef = useRef<{ x: number; y: number }>({
+    x: -9999,
+    y: -9999,
+  });
+
+  useEffect(() => {
+    onZoneEnterRef.current = onZoneEnter;
+  }, [onZoneEnter]);
 
   useEffect(() => {
     screenStateRef.current = screenState;
     heldKeysRef.current.clear();
     jumpQueuedRef.current = false;
+    mouseDownRef.current = false;
+    mouseJustPressedRef.current = false;
   }, [screenState]);
 
   useEffect(() => {
@@ -93,13 +126,41 @@ export function GameCanvas({ screenState }: GameCanvasProps) {
       heldKeysRef.current.delete(event.code);
     };
 
+    const onMouseMove = (event: MouseEvent) => {
+      mouseClientPosRef.current = { x: event.clientX, y: event.clientY };
+    };
+
+    const onMouseDown = (event: MouseEvent) => {
+      if (event.button !== 0) return;
+      if (screenStateRef.current !== 'playing') return;
+      // Ignore clicks on HUD buttons
+      const target = event.target;
+      if (target instanceof Element && target.closest('button')) {
+        return;
+      }
+      mouseClientPosRef.current = { x: event.clientX, y: event.clientY };
+      mouseDownRef.current = true;
+      mouseJustPressedRef.current = true;
+    };
+
+    const onMouseUp = (event: MouseEvent) => {
+      if (event.button !== 0) return;
+      mouseDownRef.current = false;
+      mouseJustPressedRef.current = false;
+    };
+
     const clearInputs = () => {
       heldKeysRef.current.clear();
       jumpQueuedRef.current = false;
+      mouseDownRef.current = false;
+      mouseJustPressedRef.current = false;
     };
 
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mouseup', onMouseUp);
     window.addEventListener('blur', clearInputs);
     document.addEventListener('visibilitychange', clearInputs);
 
@@ -113,7 +174,13 @@ export function GameCanvas({ screenState }: GameCanvasProps) {
       canvas.dataset.cameraX = String(Math.round(sim.camera.x));
       canvas.dataset.cameraY = String(Math.round(sim.camera.y));
       canvas.dataset.deaths = String(sim.deathCount);
-      canvas.dataset.checkpointReached = String(sim.checkpoint.reached);
+      canvas.dataset.zone = sim.currentZone;
+      canvas.dataset.grappleActive = String(
+        sim.grapple.activeAnchorId ?? 'none',
+      );
+      canvas.dataset.checkpointsReached = String(
+        sim.checkpoints.filter((c) => c.reached).length,
+      );
     };
 
     let rafId = 0;
@@ -123,16 +190,30 @@ export function GameCanvas({ screenState }: GameCanvasProps) {
       const rawDt = (now - lastTimestamp) / 1000;
       lastTimestamp = now;
 
+      const sim = simStateRef.current;
+      const rect = canvas.getBoundingClientRect();
+      const { vx: mouseVirtualX, vy: mouseVirtualY } = screenToVirtual(
+        mouseClientPosRef.current.x,
+        mouseClientPosRef.current.y,
+        rect,
+        viewport,
+      );
+
       const held = heldKeysRef.current;
       const input: PlayerInputState = {
         left: held.has('ArrowLeft') || held.has('KeyA'),
         right: held.has('ArrowRight') || held.has('KeyD'),
         jumpJustPressed: jumpQueuedRef.current,
+        mouseDown: mouseDownRef.current,
+        mouseJustPressed: mouseJustPressedRef.current,
+        mouseWorldX: mouseVirtualX + sim.camera.x,
+        mouseWorldY: mouseVirtualY + sim.camera.y,
       };
       jumpQueuedRef.current = false;
+      mouseJustPressedRef.current = false;
 
       const events = stepShellState(
-        simStateRef.current,
+        sim,
         rawDt,
         screenStateRef.current,
         viewport,
@@ -141,16 +222,20 @@ export function GameCanvas({ screenState }: GameCanvasProps) {
 
       if (events.died) {
         soundEngine.playDeathBlip();
-      } else if (events.checkpointActivated) {
-        soundEngine.playCheckpointChime();
+      } else {
+        if (events.grappleAttached) {
+          soundEngine.playGrappleAttach();
+        }
+        if (events.checkpointActivated) {
+          soundEngine.playCheckpointChime();
+        }
       }
 
-      renderShellFrame(
-        ctx,
-        simStateRef.current,
-        viewport,
-        screenStateRef.current,
-      );
+      if (events.enteredZone && onZoneEnterRef.current) {
+        onZoneEnterRef.current(events.enteredZone);
+      }
+
+      renderShellFrame(ctx, sim, viewport, screenStateRef.current);
       syncTestAttributes();
 
       rafId = window.requestAnimationFrame(tick);
@@ -171,6 +256,9 @@ export function GameCanvas({ screenState }: GameCanvasProps) {
       resizeObserver.disconnect();
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('blur', clearInputs);
       document.removeEventListener('visibilitychange', clearInputs);
     };

@@ -4,8 +4,10 @@ import {
   PLAYER_SPAWN_X,
   PLAYER_SPAWN_Y,
   computeTargetCamera,
-  createAccessCorridorLevel,
+  createFacilityLevel,
   createInitialPlayer,
+  findAttachableAnchor,
+  resolveZoneName,
   stepPlayerPhysics,
   updateCameraFollow,
 } from './physics';
@@ -27,6 +29,10 @@ const EMPTY_INPUT: PlayerInputState = {
   left: false,
   right: false,
   jumpJustPressed: false,
+  mouseDown: false,
+  mouseJustPressed: false,
+  mouseWorldX: -9999,
+  mouseWorldY: -9999,
 };
 
 export function clampDeltaTime(rawDtSeconds: number): number {
@@ -119,7 +125,7 @@ export function computeParallaxOffset(
 
 export function createInitialShellState(): ShellSimulationState {
   const player = createInitialPlayer();
-  const level = createAccessCorridorLevel();
+  const level = createFacilityLevel();
 
   return {
     elapsedTime: 0,
@@ -132,7 +138,14 @@ export function createInitialShellState(): ShellSimulationState {
     platforms: level.platforms,
     lavaPits: level.lavaPits,
     spikes: level.spikes,
-    checkpoint: level.checkpoint,
+    checkpoints: level.checkpoints,
+    anchors: level.anchors,
+    grapple: {
+      activeAnchorId: null,
+      ropeLength: 0,
+    },
+    hoveredAnchorId: null,
+    currentZone: 'ACCESS CORRIDOR',
     respawnPoint: {
       x: PLAYER_SPAWN_X,
       y: PLAYER_SPAWN_Y,
@@ -154,8 +167,15 @@ export function stepShellState(
   viewport?: ViewportMetrics,
   input: PlayerInputState = EMPTY_INPUT,
 ): StepEvents {
-  const noEvents: StepEvents = { died: false, checkpointActivated: false };
+  const noEvents: StepEvents = {
+    died: false,
+    checkpointActivated: false,
+    grappleAttached: false,
+    enteredZone: null,
+  };
   if (screenState === 'paused') {
+    state.grapple.activeAnchorId = null;
+    state.hoveredAnchorId = null;
     return noEvents;
   }
 
@@ -184,6 +204,7 @@ export function stepShellState(
       baseCam.x + (1 + Math.sin(state.elapsedTime * 0.42)) * 8,
     );
     state.camera.y = baseCam.y;
+    state.hoveredAnchorId = null;
     return noEvents;
   }
 
@@ -202,9 +223,32 @@ export function stepShellState(
     dt,
     state.lavaPits,
     state.spikes,
-    state.checkpoint,
+    state.checkpoints,
     state.respawnPoint,
+    state.anchors,
+    state.grapple,
   );
+
+  // Update hovered anchor indicator when not actively grappling
+  if (state.grapple.activeAnchorId === null) {
+    const candidate = findAttachableAnchor(
+      state.player,
+      input.mouseWorldX,
+      input.mouseWorldY,
+      state.anchors,
+    );
+    state.hoveredAnchorId = candidate ? candidate.id : null;
+  } else {
+    state.hoveredAnchorId = state.grapple.activeAnchorId;
+  }
+
+  // Check zone transitions
+  const nextZone = resolveZoneName(state.player.x, state.currentZone);
+  let enteredZone: StepEvents['enteredZone'] = null;
+  if (nextZone !== state.currentZone) {
+    state.currentZone = nextZone;
+    enteredZone = nextZone;
+  }
 
   if (events.died) {
     state.deathCount += 1;
@@ -216,5 +260,10 @@ export function stepShellState(
     updateCameraFollow(state.camera, state.player, vw, vh, state.bounds, dt);
   }
 
-  return events;
+  return {
+    died: events.died,
+    checkpointActivated: events.checkpointActivated,
+    grappleAttached: events.grappleAttached,
+    enteredZone,
+  };
 }

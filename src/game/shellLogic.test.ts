@@ -58,16 +58,18 @@ test('stepShellState keeps player stationary on title and moves player with inpu
   assert.equal(state.player.x, spawnX);
   assert.ok(state.elapsedTime > 0);
 
-  stepShellState(state, 0.016, 'playing', viewport, {
+  const moveRightInput = {
     left: false,
     right: true,
     jumpJustPressed: false,
-  });
-  stepShellState(state, 0.016, 'playing', viewport, {
-    left: false,
-    right: true,
-    jumpJustPressed: false,
-  });
+    mouseDown: false,
+    mouseJustPressed: false,
+    mouseWorldX: -9999,
+    mouseWorldY: -9999,
+  };
+
+  stepShellState(state, 0.016, 'playing', viewport, moveRightInput);
+  stepShellState(state, 0.016, 'playing', viewport, moveRightInput);
   assert.ok(state.player.x > spawnX);
 });
 

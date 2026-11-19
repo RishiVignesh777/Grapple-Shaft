@@ -1,6 +1,8 @@
 import type {
   CameraState,
   CheckpointMarker,
+  GrappleAnchor,
+  GrappleState,
   LavaPitRect,
   LevelBounds,
   PlatformRect,
@@ -8,9 +10,11 @@ import type {
   PlayerInputState,
   RespawnPoint,
   SpikeCluster,
+  ZoneName,
 } from './types';
 
-export const LEVEL_WIDTH = 960;
+export const LEVEL_WIDTH = 1600;
+export const LEVEL_MIN_Y = -220;
 export const LEVEL_HEIGHT = 360;
 export const DEATH_VOID_Y = LEVEL_HEIGHT + 36;
 export const WALL_THICKNESS = 16;
@@ -21,6 +25,10 @@ export const DEATH_FLASH_DURATION = 0.28;
 export const PLAYER_SIZE = 16;
 export const PLAYER_SPAWN_X = 56;
 export const PLAYER_SPAWN_Y = 280 - PLAYER_SIZE; // 264 (resting on entry walkway top y=280)
+
+export const GRAPPLE_PLAYER_RANGE = 152;
+export const GRAPPLE_CURSOR_RANGE = 44;
+export const GRAPPLE_MIN_ROPE_LENGTH = 24;
 
 export const PHYSICS = {
   gravity: 980,
@@ -34,32 +42,26 @@ export const PHYSICS = {
   cameraFollowSpeed: 7.5,
 } as const;
 
-export interface AccessCorridorLevel {
+export interface FacilityLevelData {
   platforms: PlatformRect[];
   lavaPits: LavaPitRect[];
   spikes: SpikeCluster[];
-  checkpoint: CheckpointMarker;
+  checkpoints: CheckpointMarker[];
+  anchors: GrappleAnchor[];
   bounds: LevelBounds;
 }
 
-export function createAccessCorridorLevel(): AccessCorridorLevel {
+export function createFacilityLevel(): FacilityLevelData {
   const platforms: PlatformRect[] = [
-    // Solid left & right shaft boundary walls
+    // --- SECTION 1: ACCESS CORRIDOR (unchanged coordinates) ---
     {
       x: 0,
-      y: 0,
+      y: LEVEL_MIN_Y,
       width: WALL_THICKNESS,
-      height: LEVEL_HEIGHT,
+      height: LEVEL_HEIGHT - LEVEL_MIN_Y,
       kind: 'wall',
     },
-    {
-      x: LEVEL_WIDTH - WALL_THICKNESS,
-      y: 0,
-      width: WALL_THICKNESS,
-      height: LEVEL_HEIGHT,
-      kind: 'wall',
-    },
-    // Section 1: Entry Bay walkway
+    // Entry Bay walkway
     {
       x: WALL_THICKNESS,
       y: 280,
@@ -67,7 +69,7 @@ export function createAccessCorridorLevel(): AccessCorridorLevel {
       height: 80,
       kind: 'pad',
     },
-    // Section 2: Walkway after first lava gap (contains first spike obstacle)
+    // Walkway 2 after first lava gap (Spike 1)
     {
       x: 232,
       y: 272,
@@ -75,7 +77,7 @@ export function createAccessCorridorLevel(): AccessCorridorLevel {
       height: 88,
       kind: 'platform',
     },
-    // Section 3: Elevated Mid-Deck after second lava gap (contains second spike obstacle)
+    // Elevated Mid-Deck after second lava gap (Spike 2)
     {
       x: 460,
       y: 256,
@@ -83,47 +85,103 @@ export function createAccessCorridorLevel(): AccessCorridorLevel {
       height: 104,
       kind: 'platform',
     },
-    // Section 4: Checkpoint Bay near end of Access Corridor (over open safety-net gap)
+    // Checkpoint 1 Bay leading to Reactor Chasm
     {
       x: 692,
       y: 248,
-      width: LEVEL_WIDTH - WALL_THICKNESS - 692,
+      width: 252,
       height: 112,
+      kind: 'platform',
+    },
+
+    // --- SECTION 2: REACTOR CHASM LANDING BAY & SECTION 3: SERVICE SHAFT ---
+    // Landing Bay after Reactor Chasm (x=1280..1456), houses Checkpoint 2 and Service Shaft entry lip
+    {
+      x: 1280,
+      y: 248,
+      width: 176,
+      height: 112,
+      kind: 'platform',
+    },
+    // Service Shaft left wall (above entry doorway y=176)
+    {
+      x: 1424,
+      y: LEVEL_MIN_Y,
+      width: WALL_THICKNESS,
+      height: 176 - LEVEL_MIN_Y,
+      kind: 'wall',
+    },
+    // Service Shaft right outer wall (full height down to floor)
+    {
+      x: LEVEL_WIDTH - WALL_THICKNESS,
+      y: LEVEL_MIN_Y,
+      width: WALL_THICKNESS,
+      height: LEVEL_HEIGHT - LEVEL_MIN_Y,
+      kind: 'wall',
+    },
+    // Service Shaft top ceiling cap
+    {
+      x: 1424,
+      y: LEVEL_MIN_Y,
+      width: LEVEL_WIDTH - 1424,
+      height: 16,
+      kind: 'wall',
+    },
+    // Top platform of Service Shaft (open swing gap on right x=1516..1584)
+    {
+      x: 1440,
+      y: -116,
+      width: 76,
+      height: 14,
       kind: 'platform',
     },
   ];
 
   const lavaPits: LavaPitRect[] = [
-    // Lava Pit 1 (between Entry Bay 184 and Walkway 2 at 232)
+    // Access Corridor Lava Pit 1
     {
       x: 184,
       y: 336,
       width: 48,
       height: 24,
     },
-    // Lava Pit 2 (between Walkway 2 at 408 and Mid-Deck at 460)
+    // Access Corridor Lava Pit 2
     {
       x: 408,
       y: 336,
       width: 52,
       height: 24,
     },
+    // Reactor Chasm wide lava pit (x=944..1280)
+    {
+      x: 944,
+      y: 336,
+      width: 336,
+      height: 24,
+    },
+    // Service Shaft bottom lava pool (x=1456..1584)
+    {
+      x: 1456,
+      y: 336,
+      width: 128,
+      height: 24,
+    },
   ];
 
   const spikes: SpikeCluster[] = [
-    // Spike obstacle 1 on Walkway 2
+    // Access Corridor Spike 1
     {
       x: 308,
       baseY: 272,
       count: 3,
     },
-    // Spike obstacle 2 on Mid-Deck
+    // Access Corridor Spike 2
     {
       x: 540,
       baseY: 256,
       count: 3,
     },
-    // Spike obstacle 3 past the checkpoint marker (allows quick checkpoint respawn test)
+    // Access Corridor Spike 3
     {
       x: 884,
       baseY: 248,
@@ -131,21 +189,56 @@ export function createAccessCorridorLevel(): AccessCorridorLevel {
     },
   ];
 
-  const checkpoint: CheckpointMarker = {
-    x: 816,
-    baseY: 248,
-    width: 14,
-    height: 26,
-    reached: false,
-  };
+  const checkpoints: CheckpointMarker[] = [
+    // Checkpoint 1: End of Access Corridor
+    {
+      id: 'cp-corridor',
+      x: 816,
+      baseY: 248,
+      width: 14,
+      height: 26,
+      reached: false,
+    },
+    // Checkpoint 2: After Reactor Chasm
+    {
+      id: 'cp-chasm',
+      x: 1344,
+      baseY: 248,
+      width: 14,
+      height: 26,
+      reached: false,
+    },
+    // Checkpoint 3: Top of Service Shaft
+    {
+      id: 'cp-shaft-top',
+      x: 1468,
+      baseY: -116,
+      width: 14,
+      height: 26,
+      reached: false,
+    },
+  ];
+
+  const anchors: GrappleAnchor[] = [
+    // Reactor Chasm: 2 suspended anchors
+    { id: 'chasm-1', x: 1036, y: 166 },
+    { id: 'chasm-2', x: 1192, y: 166 },
+    // Service Shaft: 3 anchors alternating right -> left -> right walls
+    { id: 'shaft-1', x: 1556, y: 166 },
+    { id: 'shaft-2', x: 1464, y: 66 },
+    { id: 'shaft-3', x: 1556, y: -34 },
+  ];
 
   return {
     platforms,
     lavaPits,
     spikes,
-    checkpoint,
+    checkpoints,
+    anchors,
     bounds: {
+      minX: 0,
       width: LEVEL_WIDTH,
+      minY: LEVEL_MIN_Y,
       height: LEVEL_HEIGHT,
       deathVoidY: DEATH_VOID_Y,
     },
@@ -189,7 +282,6 @@ export function resolveAabbCollision(
     return 'none';
   }
 
-  // Resolve along whichever axis has the smaller overlap
   if (overlapY <= overlapX) {
     if (dy < 0) {
       player.y -= overlapY;
@@ -240,7 +332,6 @@ export function rectsOverlap(a: SimpleRect, b: SimpleRect): boolean {
 
 export function getSpikeHitbox(cluster: SpikeCluster): SimpleRect {
   const totalWidth = cluster.count * SPIKE_WIDTH;
-  // Slightly inset horizontally & from the pixel tip so visual grazes feel fair
   return {
     x: cluster.x + 2,
     y: cluster.baseY - SPIKE_HEIGHT + 2,
@@ -256,6 +347,89 @@ export function getCheckpointHitbox(checkpoint: CheckpointMarker): SimpleRect {
     width: checkpoint.width,
     height: checkpoint.height,
   };
+}
+
+export function findAttachableAnchor(
+  player: PlayerBody,
+  mouseWorldX: number,
+  mouseWorldY: number,
+  anchors: GrappleAnchor[],
+  playerRange = GRAPPLE_PLAYER_RANGE,
+  cursorRange = GRAPPLE_CURSOR_RANGE,
+): GrappleAnchor | null {
+  const px = player.x + player.width / 2;
+  const py = player.y + player.height / 2;
+
+  let best: GrappleAnchor | null = null;
+  let bestCursorDist = Number.POSITIVE_INFINITY;
+
+  for (let i = 0; i < anchors.length; i++) {
+    const anchor = anchors[i];
+    const cursorDist = Math.hypot(mouseWorldX - anchor.x, mouseWorldY - anchor.y);
+    if (cursorDist > cursorRange) continue;
+
+    const playerDist = Math.hypot(px - anchor.x, py - anchor.y);
+    if (playerDist > playerRange) continue;
+
+    if (cursorDist < bestCursorDist) {
+      bestCursorDist = cursorDist;
+      best = anchor;
+    }
+  }
+
+  return best;
+}
+
+export function applyPendulumConstraint(
+  player: PlayerBody,
+  anchor: GrappleAnchor,
+  ropeLength: number,
+): void {
+  const px = player.x + player.width / 2;
+  const py = player.y + player.height / 2;
+
+  const dx = px - anchor.x;
+  const dy = py - anchor.y;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist <= 0.0001) {
+    return;
+  }
+
+  const nx = dx / dist;
+  const ny = dy / dist;
+
+  // Constrain player's distance to anchor to fixed ropeLength
+  const constrainedPx = anchor.x + nx * ropeLength;
+  const constrainedPy = anchor.y + ny * ropeLength;
+  player.x = constrainedPx - player.width / 2;
+  player.y = constrainedPy - player.height / 2;
+
+  // Remove the radial component of velocity so the player swings smoothly
+  const radialVel = player.vx * nx + player.vy * ny;
+  player.vx -= radialVel * nx;
+  player.vy -= radialVel * ny;
+}
+
+export function resolveZoneName(
+  playerX: number,
+  currentZone: ZoneName,
+): ZoneName {
+  if (currentZone === 'ACCESS CORRIDOR') {
+    if (playerX >= 1432) return 'SERVICE SHAFT';
+    if (playerX >= 930) return 'REACTOR CHASM';
+    return 'ACCESS CORRIDOR';
+  }
+  if (currentZone === 'REACTOR CHASM') {
+    if (playerX >= 1432) return 'SERVICE SHAFT';
+    if (playerX < 900) return 'ACCESS CORRIDOR';
+    return 'REACTOR CHASM';
+  }
+  // SERVICE SHAFT
+  if (playerX < 1400) {
+    return playerX < 900 ? 'ACCESS CORRIDOR' : 'REACTOR CHASM';
+  }
+  return 'SERVICE SHAFT';
 }
 
 export function respawnPlayerAt(
@@ -277,70 +451,119 @@ export function stepPlayerPhysics(
   dt: number,
   lavaPits: LavaPitRect[] = [],
   spikes: SpikeCluster[] = [],
-  checkpoint?: CheckpointMarker,
+  checkpoints: CheckpointMarker[] = [],
   respawnPoint: RespawnPoint = { x: PLAYER_SPAWN_X, y: PLAYER_SPAWN_Y },
-): { died: boolean; checkpointActivated: boolean } {
+  anchors: GrappleAnchor[] = [],
+  grapple: GrappleState = { activeAnchorId: null, ropeLength: 0 },
+): { died: boolean; checkpointActivated: boolean; grappleAttached: boolean } {
   if (dt <= 0) {
-    return { died: false, checkpointActivated: false };
+    return { died: false, checkpointActivated: false, grappleAttached: false };
   }
 
-  // 1. Horizontal acceleration / friction & speed cap
-  const moveDir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-  if (moveDir !== 0) {
-    player.facing = moveDir > 0 ? 1 : -1;
-    const accel = player.grounded ? PHYSICS.runAccel : PHYSICS.airAccel;
-    player.vx += moveDir * accel * dt;
-    if (player.vx > PHYSICS.maxRunSpeed) {
-      player.vx = PHYSICS.maxRunSpeed;
-    } else if (player.vx < -PHYSICS.maxRunSpeed) {
-      player.vx = -PHYSICS.maxRunSpeed;
+  let grappleAttached = false;
+
+  // 0. Grapple attach / release handling
+  if (!input.mouseDown) {
+    // Releasing mouse button lets go, preserving current momentum
+    grapple.activeAnchorId = null;
+  } else if (input.mouseJustPressed && grapple.activeAnchorId === null) {
+    const target = findAttachableAnchor(
+      player,
+      input.mouseWorldX,
+      input.mouseWorldY,
+      anchors,
+    );
+    if (target) {
+      const px = player.x + player.width / 2;
+      const py = player.y + player.height / 2;
+      const dist = Math.hypot(px - target.x, py - target.y);
+      grapple.activeAnchorId = target.id;
+      grapple.ropeLength = Math.max(
+        GRAPPLE_MIN_ROPE_LENGTH,
+        Math.min(GRAPPLE_PLAYER_RANGE, dist),
+      );
+      grappleAttached = true;
     }
+  }
+
+  const activeAnchor =
+    grapple.activeAnchorId !== null
+      ? anchors.find((a) => a.id === grapple.activeAnchorId) ?? null
+      : null;
+
+  if (activeAnchor) {
+    // Pendulum swing physics: optional gentle tangential air control + gravity + fixed rope constraint
+    const moveDir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+    if (moveDir !== 0) {
+      player.facing = moveDir > 0 ? 1 : -1;
+      player.vx += moveDir * PHYSICS.airAccel * 0.55 * dt;
+    }
+
+    player.vy = Math.min(PHYSICS.maxFallSpeed, player.vy + PHYSICS.gravity * dt);
+    player.x += player.vx * dt;
+    player.y += player.vy * dt;
+
+    applyPendulumConstraint(player, activeAnchor, grapple.ropeLength);
   } else {
-    const decel = player.grounded ? PHYSICS.groundFriction : PHYSICS.airDrag;
-    if (Math.abs(player.vx) <= decel * dt) {
-      player.vx = 0;
+    // Standard 2D platformer movement physics
+    const moveDir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+    if (moveDir !== 0) {
+      player.facing = moveDir > 0 ? 1 : -1;
+      const accel = player.grounded ? PHYSICS.runAccel : PHYSICS.airAccel;
+      player.vx += moveDir * accel * dt;
+      if (player.vx > PHYSICS.maxRunSpeed) {
+        player.vx = PHYSICS.maxRunSpeed;
+      } else if (player.vx < -PHYSICS.maxRunSpeed) {
+        player.vx = -PHYSICS.maxRunSpeed;
+      }
     } else {
-      player.vx -= Math.sign(player.vx) * decel * dt;
+      const decel = player.grounded ? PHYSICS.groundFriction : PHYSICS.airDrag;
+      if (Math.abs(player.vx) <= decel * dt) {
+        player.vx = 0;
+      } else {
+        player.vx -= Math.sign(player.vx) * decel * dt;
+      }
     }
+
+    // Single jump (only when grounded)
+    if (input.jumpJustPressed && player.grounded) {
+      player.vy = PHYSICS.jumpVelocity;
+      player.grounded = false;
+    }
+
+    // Gravity
+    player.vy = Math.min(PHYSICS.maxFallSpeed, player.vy + PHYSICS.gravity * dt);
+
+    // Integrate position
+    player.x += player.vx * dt;
+    player.y += player.vy * dt;
   }
 
-  // 2. Single jump (only when grounded)
-  if (input.jumpJustPressed && player.grounded) {
-    player.vy = PHYSICS.jumpVelocity;
-    player.grounded = false;
-  }
-
-  // 3. Gravity
-  player.vy = Math.min(PHYSICS.maxFallSpeed, player.vy + PHYSICS.gravity * dt);
-
-  // 4. Integrate position
-  player.x += player.vx * dt;
-  player.y += player.vy * dt;
-
-  // 5. AABB collision against solid platforms (resolve smaller overlap axis)
+  // AABB collision against solid platforms (resolve smaller overlap axis)
   player.grounded = false;
   for (let i = 0; i < platforms.length; i++) {
     resolveAabbCollision(player, platforms[i]);
   }
 
-  // 6. Clamp top ceiling
-  if (player.y < 0) {
-    player.y = 0;
+  // Clamp top ceiling
+  if (player.y < bounds.minY) {
+    player.y = bounds.minY;
     if (player.vy < 0) player.vy = 0;
   }
 
-  // 7. Checkpoint activation check (before hazard checks if standing safely on bay)
+  // Checkpoint activation checks
   let checkpointActivated = false;
-  if (checkpoint && !checkpoint.reached) {
-    if (rectsOverlap(player, getCheckpointHitbox(checkpoint))) {
-      checkpoint.reached = true;
-      respawnPoint.x = checkpoint.x - 1;
-      respawnPoint.y = checkpoint.baseY - player.height;
+  for (let i = 0; i < checkpoints.length; i++) {
+    const cp = checkpoints[i];
+    if (!cp.reached && rectsOverlap(player, getCheckpointHitbox(cp))) {
+      cp.reached = true;
+      respawnPoint.x = cp.x - 1;
+      respawnPoint.y = cp.baseY - player.height;
       checkpointActivated = true;
     }
   }
 
-  // 8. Instant death hazards: lava pits, spike obstacles, or safety-net void fall
+  // Instant death hazards: lava pits, spike obstacles, or safety-net void fall
   let died = player.y > bounds.deathVoidY;
 
   if (!died) {
@@ -362,10 +585,11 @@ export function stepPlayerPhysics(
   }
 
   if (died) {
+    grapple.activeAnchorId = null;
     respawnPlayerAt(player, respawnPoint);
   }
 
-  return { died, checkpointActivated };
+  return { died, checkpointActivated, grappleAttached };
 }
 
 export function clampCameraToBounds(
@@ -374,19 +598,19 @@ export function clampCameraToBounds(
   viewportHeight: number,
   bounds: LevelBounds,
 ): void {
-  const maxCamX = Math.max(0, bounds.width - viewportWidth);
-  const maxCamY = Math.max(0, bounds.height - viewportHeight);
+  const maxCamX = Math.max(bounds.minX, bounds.width - viewportWidth);
+  const maxCamY = Math.max(bounds.minY, bounds.height - viewportHeight);
 
-  if (bounds.width <= viewportWidth) {
-    camera.x = (bounds.width - viewportWidth) / 2;
+  if (bounds.width - bounds.minX <= viewportWidth) {
+    camera.x = bounds.minX + (bounds.width - bounds.minX - viewportWidth) / 2;
   } else {
-    camera.x = Math.max(0, Math.min(maxCamX, camera.x));
+    camera.x = Math.max(bounds.minX, Math.min(maxCamX, camera.x));
   }
 
-  if (bounds.height <= viewportHeight) {
-    camera.y = (bounds.height - viewportHeight) / 2;
+  if (bounds.height - bounds.minY <= viewportHeight) {
+    camera.y = bounds.minY + (bounds.height - bounds.minY - viewportHeight) / 2;
   } else {
-    camera.y = Math.max(0, Math.min(maxCamY, camera.y));
+    camera.y = Math.max(bounds.minY, Math.min(maxCamY, camera.y));
   }
 }
 

@@ -7,6 +7,8 @@ export type GameStateAction =
   | 'TOGGLE_PAUSE'
   | 'RETURN_TITLE';
 
+export type ZoneName = 'ACCESS CORRIDOR' | 'REACTOR CHASM' | 'SERVICE SHAFT';
+
 export interface CameraState {
   x: number;
   y: number;
@@ -43,11 +45,23 @@ export interface LavaPitRect {
 }
 
 export interface CheckpointMarker {
+  id: string;
   x: number;
   baseY: number;
   width: number;
   height: number;
   reached: boolean;
+}
+
+export interface GrappleAnchor {
+  id: string;
+  x: number;
+  y: number;
+}
+
+export interface GrappleState {
+  activeAnchorId: string | null;
+  ropeLength: number;
 }
 
 export interface RespawnPoint {
@@ -70,10 +84,16 @@ export interface PlayerInputState {
   left: boolean;
   right: boolean;
   jumpJustPressed: boolean;
+  mouseDown: boolean;
+  mouseJustPressed: boolean;
+  mouseWorldX: number;
+  mouseWorldY: number;
 }
 
 export interface LevelBounds {
+  minX: number;
   width: number;
+  minY: number;
   height: number;
   deathVoidY: number;
 }
@@ -89,6 +109,8 @@ export interface ViewportMetrics {
 export interface StepEvents {
   died: boolean;
   checkpointActivated: boolean;
+  grappleAttached: boolean;
+  enteredZone: ZoneName | null;
 }
 
 export interface ShellSimulationState {
@@ -99,7 +121,11 @@ export interface ShellSimulationState {
   platforms: PlatformRect[];
   lavaPits: LavaPitRect[];
   spikes: SpikeCluster[];
-  checkpoint: CheckpointMarker;
+  checkpoints: CheckpointMarker[];
+  anchors: GrappleAnchor[];
+  grapple: GrappleState;
+  hoveredAnchorId: string | null;
+  currentZone: ZoneName;
   respawnPoint: RespawnPoint;
   deathFlashTimer: number;
   deathCount: number;

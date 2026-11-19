@@ -1,5 +1,5 @@
 import { PALETTE } from './palette';
-import { DEATH_FLASH_DURATION, SPIKE_WIDTH, WALL_THICKNESS } from './physics';
+import { DEATH_FLASH_DURATION, SPIKE_WIDTH } from './physics';
 import {
   PANEL_GRID_SIZE,
   computeParallaxOffset,
@@ -8,6 +8,7 @@ import {
 import type {
   CheckpointMarker,
   GameScreenState,
+  GrappleAnchor,
   LavaPitRect,
   PlatformRect,
   ShellSimulationState,
@@ -200,7 +201,6 @@ function drawLavaPit(
   const w = pit.width;
   const h = pit.height;
 
-  // Dithered pixel heat glow above the pit
   for (let px = sx; px < sx + w; px += 2) {
     ctx.globalAlpha = 0.14;
     ctx.fillStyle = PALETTE.lavaDeep;
@@ -209,7 +209,6 @@ function drawLavaPit(
   }
   ctx.globalAlpha = 1;
 
-  // Stepped pixel-art orange-red lava (#ffb347 -> #ff5a2b)
   const bands: Array<{ offset: number; height: number; color: string }> = [
     { offset: 0, height: 2, color: PALETTE.lavaBright },
     { offset: 2, height: 3, color: PALETTE.lavaMid },
@@ -244,6 +243,44 @@ function drawLavaPit(
   }
 }
 
+function drawWallRect(
+  ctx: CanvasRenderingContext2D,
+  wall: PlatformRect,
+  camX: number,
+  camY: number,
+): void {
+  const sx = Math.round(wall.x - camX);
+  const sy = Math.round(wall.y - camY);
+  const block = 12;
+
+  if (wall.width > wall.height && wall.height <= 20) {
+    // Horizontal ceiling beam
+    ctx.fillStyle = PALETTE.panelDark;
+    ctx.fillRect(sx, sy, wall.width, wall.height);
+    ctx.fillStyle = PALETTE.panelLight;
+    ctx.fillRect(sx, sy + wall.height - 2, wall.width, 2);
+    for (let bx = 0; bx < wall.width; bx += block) {
+      ctx.fillRect(sx + bx, sy, 1, wall.height);
+    }
+    return;
+  }
+
+  // Vertical armored bulkhead wall
+  for (let y = 0; y < wall.height; y += block) {
+    const bh = Math.min(block - 1, wall.height - y);
+    const by = sy + y;
+    ctx.fillStyle = PALETTE.panelDark;
+    ctx.fillRect(sx, by, wall.width, bh);
+    ctx.fillStyle = PALETTE.panelLight;
+    ctx.fillRect(sx, by, wall.width, 1);
+    ctx.fillRect(sx, by, 2, bh);
+    ctx.fillRect(sx + wall.width - 2, by, 2, bh);
+    ctx.fillStyle = PALETTE.panelHighlight;
+    ctx.fillRect(sx + 1, by, 1, 1);
+    ctx.fillRect(sx + wall.width - 2, by, 1, 1);
+  }
+}
+
 function drawPlatformRect(
   ctx: CanvasRenderingContext2D,
   plat: PlatformRect,
@@ -253,11 +290,9 @@ function drawPlatformRect(
   const sx = Math.round(plat.x - camX);
   const sy = Math.round(plat.y - camY);
 
-  // Steel-gray walkway body
   ctx.fillStyle = PALETTE.panelDark;
   ctx.fillRect(sx, sy, plat.width, plat.height);
 
-  // Subtle internal panel ribbing for deep walkway bases
   if (plat.height >= 24) {
     ctx.fillStyle = '#141f2c';
     for (let bx = 16; bx < plat.width - 8; bx += 24) {
@@ -268,13 +303,11 @@ function drawPlatformRect(
     ctx.fillRect(sx + plat.width - 2, sy, 2, plat.height);
   }
 
-  // Top steel deck bevel
   ctx.fillStyle = PALETTE.panelLight;
   ctx.fillRect(sx, sy, plat.width, 3);
   ctx.fillStyle = PALETTE.panelHighlight;
   ctx.fillRect(sx + 1, sy, Math.max(1, plat.width - 2), 1);
 
-  // Terminal green & cyan bay trim accents along top deck
   ctx.fillStyle = PALETTE.terminalGreen;
   ctx.fillRect(sx + 6, sy + 6, 8, 1);
   if (plat.width >= 48) {
@@ -295,7 +328,6 @@ function drawCheckpointMarker(
   const baseY = Math.round(checkpoint.baseY - camY);
   const topY = baseY - checkpoint.height;
 
-  // Steel plinth base
   ctx.fillStyle = PALETTE.bgVoid;
   ctx.fillRect(sx + 1, baseY - 5, checkpoint.width - 2, 5);
   ctx.fillStyle = PALETTE.panelLight;
@@ -303,13 +335,11 @@ function drawCheckpointMarker(
   ctx.fillStyle = PALETTE.panelHighlight;
   ctx.fillRect(sx + 2, baseY - 4, checkpoint.width - 4, 1);
 
-  // Vertical beacon mast
   ctx.fillStyle = PALETTE.panelDark;
   ctx.fillRect(sx + 5, topY + 6, 4, checkpoint.height - 10);
   ctx.fillStyle = PALETTE.panelLight;
   ctx.fillRect(sx + 6, topY + 6, 2, checkpoint.height - 10);
 
-  // Beacon head
   ctx.fillStyle = PALETTE.panelLight;
   ctx.fillRect(sx + 3, topY, 8, 7);
   ctx.fillStyle = PALETTE.panelDark;
@@ -322,7 +352,6 @@ function drawCheckpointMarker(
     : PALETTE.cyanAccent;
   ctx.fillRect(sx + 5, topY + 2, 4, 3);
 
-  // Active holographic flag banner when checkpoint is reached
   if (checkpoint.reached) {
     ctx.globalAlpha = 0.85;
     ctx.fillStyle = PALETTE.terminalGreen;
@@ -332,51 +361,115 @@ function drawCheckpointMarker(
   ctx.globalAlpha = 1;
 }
 
+function drawGrappleAnchor(
+  ctx: CanvasRenderingContext2D,
+  state: ShellSimulationState,
+  anchor: GrappleAnchor,
+  camX: number,
+  camY: number,
+): void {
+  const cx = Math.round(anchor.x - camX);
+  const cy = Math.round(anchor.y - camY);
+  const isActive = state.grapple.activeAnchorId === anchor.id;
+  const isHovered = state.hoveredAnchorId === anchor.id;
+
+  const pulse = 0.72 + 0.28 * Math.sin(state.elapsedTime * 5.2 + anchor.x * 0.05);
+
+  // Subtle green outer glow ring
+  ctx.globalAlpha = isActive ? 0.42 : 0.22 * pulse;
+  ctx.fillStyle = PALETTE.terminalGreen;
+  ctx.fillRect(cx - 6, cy - 6, 12, 12);
+  ctx.globalAlpha = 1;
+
+  // Steel-gray square housing
+  ctx.fillStyle = PALETTE.bgVoid;
+  ctx.fillRect(cx - 5, cy - 5, 10, 10);
+  ctx.fillStyle = PALETTE.panelLight;
+  ctx.fillRect(cx - 4, cy - 4, 8, 8);
+  ctx.fillStyle = PALETTE.panelDark;
+  ctx.fillRect(cx - 3, cy - 3, 6, 6);
+
+  // Glowing green anchor core
+  ctx.globalAlpha = isActive ? 1 : pulse;
+  ctx.fillStyle = PALETTE.terminalGreen;
+  ctx.fillRect(cx - 2, cy - 2, 4, 4);
+  ctx.fillStyle = '#b6ffd7';
+  ctx.fillRect(cx - 1, cy - 1, 2, 2);
+  ctx.globalAlpha = 1;
+
+  // Pixel targeting reticle when attachable or active
+  if (isHovered || isActive) {
+    ctx.fillStyle = isActive ? PALETTE.terminalGreen : PALETTE.cyanAccent;
+    // Top-left corner
+    ctx.fillRect(cx - 8, cy - 8, 3, 1);
+    ctx.fillRect(cx - 8, cy - 8, 1, 3);
+    // Top-right corner
+    ctx.fillRect(cx + 5, cy - 8, 3, 1);
+    ctx.fillRect(cx + 7, cy - 8, 1, 3);
+    // Bottom-left corner
+    ctx.fillRect(cx - 8, cy + 7, 3, 1);
+    ctx.fillRect(cx - 8, cy + 5, 1, 3);
+    // Bottom-right corner
+    ctx.fillRect(cx + 5, cy + 7, 3, 1);
+    ctx.fillRect(cx + 7, cy + 5, 1, 3);
+  }
+}
+
+function drawPixelLine(
+  ctx: CanvasRenderingContext2D,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  color: string,
+  thickness = 1,
+): void {
+  let ix0 = Math.round(x0);
+  let iy0 = Math.round(y0);
+  const ix1 = Math.round(x1);
+  const iy1 = Math.round(y1);
+
+  const dx = Math.abs(ix1 - ix0);
+  const dy = Math.abs(iy1 - iy0);
+  const sx = ix0 < ix1 ? 1 : -1;
+  const sy = iy0 < iy1 ? 1 : -1;
+  let err = dx - dy;
+
+  ctx.fillStyle = color;
+  for (let steps = 0; steps < 1000; steps++) {
+    ctx.fillRect(ix0, iy0, thickness, thickness);
+    if (ix0 === ix1 && iy0 === iy1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      ix0 += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      iy0 += sy;
+    }
+  }
+}
+
 function drawCorridorWorld(
   ctx: CanvasRenderingContext2D,
   state: ShellSimulationState,
   camX: number,
   camY: number,
 ): void {
-  const wallW = WALL_THICKNESS;
-  const block = 12;
-  const worldW = state.bounds.width;
-  const worldH = state.bounds.height;
-
-  // Left & right armored steel shaft boundary walls
-  const leftScreenX = Math.round(0 - camX);
-  const rightScreenX = Math.round(worldW - wallW - camX);
-
-  for (let y = 0; y < worldH; y += block) {
-    const sy = Math.round(y - camY);
-
-    ctx.fillStyle = PALETTE.panelDark;
-    ctx.fillRect(leftScreenX, sy, wallW, block - 1);
-    ctx.fillStyle = PALETTE.panelLight;
-    ctx.fillRect(leftScreenX + wallW - 2, sy, 2, block - 1);
-    ctx.fillRect(leftScreenX, sy, wallW, 1);
-    ctx.fillStyle = PALETTE.panelHighlight;
-    ctx.fillRect(leftScreenX + wallW - 2, sy, 1, 1);
-
-    ctx.fillStyle = PALETTE.panelDark;
-    ctx.fillRect(rightScreenX, sy, wallW, block - 1);
-    ctx.fillStyle = PALETTE.panelLight;
-    ctx.fillRect(rightScreenX, sy, 2, block - 1);
-    ctx.fillRect(rightScreenX, sy, wallW, 1);
-    ctx.fillStyle = PALETTE.panelHighlight;
-    ctx.fillRect(rightScreenX + 1, sy, 1, 1);
-  }
-
   // Lava pits
   for (let i = 0; i < state.lavaPits.length; i++) {
     drawLavaPit(ctx, state, state.lavaPits[i], camX, camY);
   }
 
-  // Solid corridor walkways
+  // Solid walls and walkways
   for (let i = 0; i < state.platforms.length; i++) {
     const plat = state.platforms[i];
-    if (plat.kind === 'wall') continue;
-    drawPlatformRect(ctx, plat, camX, camY);
+    if (plat.kind === 'wall') {
+      drawWallRect(ctx, plat, camX, camY);
+    } else {
+      drawPlatformRect(ctx, plat, camX, camY);
+    }
   }
 
   // Walkway spike hazards
@@ -390,8 +483,30 @@ function drawCorridorWorld(
     );
   }
 
-  // Checkpoint beacon
-  drawCheckpointMarker(ctx, state, state.checkpoint, camX, camY);
+  // Checkpoint beacons
+  for (let i = 0; i < state.checkpoints.length; i++) {
+    drawCheckpointMarker(ctx, state, state.checkpoints[i], camX, camY);
+  }
+
+  // Glowing green grapple anchors
+  for (let i = 0; i < state.anchors.length; i++) {
+    drawGrappleAnchor(ctx, state, state.anchors[i], camX, camY);
+  }
+
+  // Active grapple rope line from player center to attached anchor
+  if (state.grapple.activeAnchorId !== null) {
+    const active = state.anchors.find(
+      (a) => a.id === state.grapple.activeAnchorId,
+    );
+    if (active) {
+      const px = state.player.x + state.player.width / 2 - camX;
+      const py = state.player.y + state.player.height / 2 - camY;
+      const ax = active.x - camX;
+      const ay = active.y - camY;
+      drawPixelLine(ctx, px, py, ax, ay, PALETTE.terminalGreen, 2);
+      drawPixelLine(ctx, px, py, ax, ay, PALETTE.cyanAccent, 1);
+    }
+  }
 }
 
 function drawPlayerSquare(
@@ -453,7 +568,7 @@ export function renderShellFrame(
   // 4. Midground facility struts
   drawMidgroundStruts(ctx, state, vw, vh);
 
-  // 5. Access Corridor platforms, lava pits, spikes, checkpoint
+  // 5. Facility sections, platforms, lava pits, spikes, checkpoints, grapple anchors & rope
   drawCorridorWorld(ctx, state, camX, camY);
 
   // 6. Player square
