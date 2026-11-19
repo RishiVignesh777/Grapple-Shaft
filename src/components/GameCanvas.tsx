@@ -15,7 +15,9 @@ import type {
 
 interface GameCanvasProps {
   screenState: GameScreenState;
+  runId: number;
   onZoneEnter?: (zone: ZoneName) => void;
+  onWin?: () => void;
 }
 
 export function screenToVirtual(
@@ -32,11 +34,17 @@ export function screenToVirtual(
   return { vx, vy };
 }
 
-export function GameCanvas({ screenState, onZoneEnter }: GameCanvasProps) {
+export function GameCanvas({
+  screenState,
+  runId,
+  onZoneEnter,
+  onWin,
+}: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const screenStateRef = useRef<GameScreenState>(screenState);
   const onZoneEnterRef = useRef(onZoneEnter);
+  const onWinRef = useRef(onWin);
   const simStateRef = useRef(createInitialShellState());
   const heldKeysRef = useRef<Set<string>>(new Set());
   const jumpQueuedRef = useRef<boolean>(false);
@@ -52,12 +60,25 @@ export function GameCanvas({ screenState, onZoneEnter }: GameCanvasProps) {
   }, [onZoneEnter]);
 
   useEffect(() => {
+    onWinRef.current = onWin;
+  }, [onWin]);
+
+  useEffect(() => {
     screenStateRef.current = screenState;
     heldKeysRef.current.clear();
     jumpQueuedRef.current = false;
     mouseDownRef.current = false;
     mouseJustPressedRef.current = false;
   }, [screenState]);
+
+  useEffect(() => {
+    if (runId === 0) return;
+    simStateRef.current = createInitialShellState();
+    heldKeysRef.current.clear();
+    jumpQueuedRef.current = false;
+    mouseDownRef.current = false;
+    mouseJustPressedRef.current = false;
+  }, [runId]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -133,7 +154,6 @@ export function GameCanvas({ screenState, onZoneEnter }: GameCanvasProps) {
     const onMouseDown = (event: MouseEvent) => {
       if (event.button !== 0) return;
       if (screenStateRef.current !== 'playing') return;
-      // Ignore clicks on HUD buttons
       const target = event.target;
       if (target instanceof Element && target.closest('button')) {
         return;
@@ -220,7 +240,12 @@ export function GameCanvas({ screenState, onZoneEnter }: GameCanvasProps) {
         input,
       );
 
-      if (events.died) {
+      if (events.won) {
+        soundEngine.playVictoryFanfare();
+        if (onWinRef.current) {
+          onWinRef.current();
+        }
+      } else if (events.died) {
         soundEngine.playDeathBlip();
       } else {
         if (events.grappleAttached) {

@@ -73,7 +73,7 @@ test('stepShellState keeps player stationary on title and moves player with inpu
   assert.ok(state.player.x > spawnX);
 });
 
-test('stepShellState freezes simulation while paused', () => {
+test('stepShellState freezes simulation while paused or won', () => {
   const state = createInitialShellState();
   const viewport = computeVirtualViewport(1440, 900);
   stepShellState(state, 0.016, 'playing', viewport);
@@ -83,9 +83,13 @@ test('stepShellState freezes simulation while paused', () => {
   stepShellState(state, 0.016, 'paused', viewport);
   assert.equal(state.elapsedTime, snapshotTime);
   assert.deepEqual(state.camera, snapshotCam);
+
+  stepShellState(state, 0.016, 'won', viewport);
+  assert.equal(state.elapsedTime, snapshotTime);
+  assert.deepEqual(state.camera, snapshotCam);
 });
 
-test('state machine resolves ?autostart=1 and handles transitions cleanly', () => {
+test('state machine resolves ?autostart=1 and handles transitions including WIN and RESTART_RUN cleanly', () => {
   assert.equal(resolveInitialScreenState(''), 'title');
   assert.equal(resolveInitialScreenState('?autostart=1'), 'playing');
 
@@ -96,4 +100,7 @@ test('state machine resolves ?autostart=1 and handles transitions cleanly', () =
   assert.equal(transitionGameState('paused', 'TOGGLE_PAUSE'), 'playing');
   assert.equal(transitionGameState('title', 'TOGGLE_PAUSE'), 'title');
   assert.equal(transitionGameState('paused', 'RETURN_TITLE'), 'title');
+  assert.equal(transitionGameState('playing', 'WIN'), 'won');
+  assert.equal(transitionGameState('won', 'RESTART_RUN'), 'playing');
+  assert.equal(transitionGameState('title', 'WIN'), 'title');
 });

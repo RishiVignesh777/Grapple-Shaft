@@ -7,6 +7,7 @@ import {
 } from './shellLogic';
 import type {
   CheckpointMarker,
+  ExitFlagMarker,
   GameScreenState,
   GrappleAnchor,
   LavaPitRect,
@@ -361,6 +362,62 @@ function drawCheckpointMarker(
   ctx.globalAlpha = 1;
 }
 
+function drawExitFlag(
+  ctx: CanvasRenderingContext2D,
+  state: ShellSimulationState,
+  flag: ExitFlagMarker,
+  camX: number,
+  camY: number,
+): void {
+  const sx = Math.round(flag.x - camX);
+  const baseY = Math.round(flag.baseY - camY);
+  const topY = baseY - flag.height;
+
+  // Subtle green beacon aura behind pennant
+  const pulse = 0.72 + 0.28 * Math.sin(state.elapsedTime * 4.5);
+  ctx.globalAlpha = 0.2 * pulse;
+  ctx.fillStyle = PALETTE.terminalGreen;
+  ctx.fillRect(sx - 2, topY - 2, flag.width + 6, 18);
+  ctx.globalAlpha = 1;
+
+  // Armored plinth base
+  ctx.fillStyle = PALETTE.bgVoid;
+  ctx.fillRect(sx, baseY - 5, 10, 5);
+  ctx.fillStyle = PALETTE.panelLight;
+  ctx.fillRect(sx + 1, baseY - 4, 8, 4);
+  ctx.fillStyle = PALETTE.panelHighlight;
+  ctx.fillRect(sx + 1, baseY - 4, 8, 1);
+
+  // Tall steel mast & cyan finial cap
+  ctx.fillStyle = PALETTE.bgVoid;
+  ctx.fillRect(sx + 2, topY, 4, flag.height - 4);
+  ctx.fillStyle = PALETTE.panelLight;
+  ctx.fillRect(sx + 3, topY + 2, 2, flag.height - 6);
+  ctx.fillStyle = PALETTE.panelHighlight;
+  ctx.fillRect(sx + 3, topY + 2, 1, flag.height - 6);
+  ctx.fillStyle = PALETTE.cyanAccent;
+  ctx.fillRect(sx + 2, topY - 1, 4, 3);
+
+  // Animated 2-phase pixel-art waving banner
+  const wave = Math.floor(state.elapsedTime * 5) % 2;
+  const wy = wave === 0 ? 0 : 1;
+
+  ctx.fillStyle = PALETTE.bgVoid;
+  ctx.fillRect(sx + 5, topY + 2, 14, 11);
+
+  ctx.fillStyle = PALETTE.terminalGreen;
+  ctx.fillRect(sx + 5, topY + 3, 6, 8);
+  ctx.fillRect(sx + 11, topY + 3 + wy, 7, 7);
+
+  // Sci-fi chevron / core stripe detail inside banner
+  ctx.fillStyle = PALETTE.bgVoid;
+  ctx.fillRect(sx + 7, topY + 5, 2, 4);
+  ctx.fillStyle = PALETTE.cyanAccent;
+  ctx.fillRect(sx + 11, topY + 5 + wy, 4, 3);
+  ctx.fillStyle = '#b6ffd7';
+  ctx.fillRect(sx + 6, topY + 3, 4, 1);
+}
+
 function drawGrappleAnchor(
   ctx: CanvasRenderingContext2D,
   state: ShellSimulationState,
@@ -487,6 +544,9 @@ function drawCorridorWorld(
   for (let i = 0; i < state.checkpoints.length; i++) {
     drawCheckpointMarker(ctx, state, state.checkpoints[i], camX, camY);
   }
+
+  // Core Exit goal flag
+  drawExitFlag(ctx, state, state.exitFlag, camX, camY);
 
   // Glowing green grapple anchors
   for (let i = 0; i < state.anchors.length; i++) {

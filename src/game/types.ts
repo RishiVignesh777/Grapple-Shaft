@@ -1,13 +1,19 @@
-export type GameScreenState = 'title' | 'playing' | 'paused';
+export type GameScreenState = 'title' | 'playing' | 'paused' | 'won';
 
 export type GameStateAction =
   | 'START'
   | 'PAUSE'
   | 'RESUME'
   | 'TOGGLE_PAUSE'
+  | 'WIN'
+  | 'RESTART_RUN'
   | 'RETURN_TITLE';
 
-export type ZoneName = 'ACCESS CORRIDOR' | 'REACTOR CHASM' | 'SERVICE SHAFT';
+export type ZoneName =
+  | 'ACCESS CORRIDOR'
+  | 'REACTOR CHASM'
+  | 'SERVICE SHAFT'
+  | 'CORE EXIT';
 
 export interface CameraState {
   x: number;
@@ -51,6 +57,13 @@ export interface CheckpointMarker {
   width: number;
   height: number;
   reached: boolean;
+}
+
+export interface ExitFlagMarker {
+  x: number;
+  baseY: number;
+  width: number;
+  height: number;
 }
 
 export interface GrappleAnchor {
@@ -111,6 +124,7 @@ export interface StepEvents {
   checkpointActivated: boolean;
   grappleAttached: boolean;
   enteredZone: ZoneName | null;
+  won: boolean;
 }
 
 export interface ShellSimulationState {
@@ -122,6 +136,7 @@ export interface ShellSimulationState {
   lavaPits: LavaPitRect[];
   spikes: SpikeCluster[];
   checkpoints: CheckpointMarker[];
+  exitFlag: ExitFlagMarker;
   anchors: GrappleAnchor[];
   grapple: GrappleState;
   hoveredAnchorId: string | null;

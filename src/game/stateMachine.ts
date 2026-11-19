@@ -18,6 +18,7 @@ export function transitionGameState(
 ): GameScreenState {
   switch (action) {
     case 'START':
+    case 'RESTART_RUN':
       return 'playing';
     case 'PAUSE':
       return current === 'playing' ? 'paused' : current;
@@ -27,6 +28,8 @@ export function transitionGameState(
       if (current === 'playing') return 'paused';
       if (current === 'paused') return 'playing';
       return current;
+    case 'WIN':
+      return current === 'playing' ? 'won' : current;
     case 'RETURN_TITLE':
       return 'title';
     default:

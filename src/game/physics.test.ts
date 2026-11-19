@@ -380,7 +380,64 @@ test('all 3 checkpoints update respawn point and zone transitions emit REACTOR C
   assert.equal(state.player.x, cp3.x - 1);
   assert.equal(state.player.y, cp3.baseY - state.player.height);
 
-  assert.equal(resolveZoneName(500, 'ACCESS CORRIDOR'), 'ACCESS CORRIDOR');
-  assert.equal(resolveZoneName(1050, 'ACCESS CORRIDOR'), 'REACTOR CHASM');
-  assert.equal(resolveZoneName(1500, 'REACTOR CHASM'), 'SERVICE SHAFT');
+  assert.equal(resolveZoneName(500, 240, 'ACCESS CORRIDOR'), 'ACCESS CORRIDOR');
+  assert.equal(resolveZoneName(1050, 200, 'ACCESS CORRIDOR'), 'REACTOR CHASM');
+  assert.equal(resolveZoneName(1500, 120, 'REACTOR CHASM'), 'SERVICE SHAFT');
+  assert.equal(resolveZoneName(1620, -132, 'SERVICE SHAFT'), 'CORE EXIT');
 });
+
+test('Core Exit section has walkway, 2 spike clusters, lava gap, exit flag, win trigger, and full run reset', () => {
+  const level = createFacilityLevel();
+
+  // Core Exit walkways at y=-116
+  assert.ok(level.platforms.some((p) => p.x === 1584 && p.y === -116 && p.width === 192));
+  assert.ok(level.platforms.some((p) => p.x === 1824 && p.y === -116 && p.width === 224));
+
+  // Core Exit spikes & lava gap
+  const coreSpikes = level.spikes.filter((s) => s.x >= 1584 && s.baseY === -116);
+  assert.equal(coreSpikes.length, 2);
+  const coreLava = level.lavaPits.find((p) => p.x === 1776 && p.y === -56);
+  assert.ok(coreLava && coreLava.width === 48);
+
+  // Exit flag at the end
+  assert.equal(level.exitFlag.x, 1988);
+  assert.equal(level.exitFlag.baseY, -116);
+
+  // Simulate entering CORE EXIT, reaching exit flag -> won: true
+  const state = createInitialShellState();
+  state.checkpoints.forEach((cp) => {
+    cp.reached = true;
+  });
+  state.respawnPoint = { x: 1467, y: -142 };
+  state.deathCount = 4;
+
+  state.player.x = 1600;
+  state.player.y = -132;
+  const zoneStep = stepShellState(state, 0.016, 'playing');
+  assert.equal(zoneStep.enteredZone, 'CORE EXIT');
+  assert.equal(state.currentZone, 'CORE EXIT');
+
+  // Touch exit flag
+  state.player.x = state.exitFlag.x;
+  state.player.y = state.exitFlag.baseY - state.player.height;
+  const winStep = stepShellState(state, 0.016, 'playing');
+  assert.equal(winStep.won, true);
+
+  // Simulation freezes while screenState is 'won'
+  const frozenElapsed = state.elapsedTime;
+  const frozenX = state.player.x;
+  stepShellState(state, 0.016, 'won', undefined, { ...NO_INPUT, right: true });
+  assert.equal(state.elapsedTime, frozenElapsed);
+  assert.equal(state.player.x, frozenX);
+
+  // Full restart resets player to beginning, clears checkpoints and death count
+  const restarted = createInitialShellState();
+  assert.equal(restarted.player.x, PLAYER_SPAWN_X);
+  assert.equal(restarted.player.y, PLAYER_SPAWN_Y);
+  assert.equal(restarted.respawnPoint.x, PLAYER_SPAWN_X);
+  assert.equal(restarted.respawnPoint.y, PLAYER_SPAWN_Y);
+  assert.equal(restarted.currentZone, 'ACCESS CORRIDOR');
+  assert.equal(restarted.deathCount, 0);
+  assert.equal(restarted.checkpoints.every((cp) => !cp.reached), true);
+});
+

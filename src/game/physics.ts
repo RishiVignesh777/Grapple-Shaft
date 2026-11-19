@@ -1,6 +1,7 @@
 import type {
   CameraState,
   CheckpointMarker,
+  ExitFlagMarker,
   GrappleAnchor,
   GrappleState,
   LavaPitRect,
@@ -13,7 +14,7 @@ import type {
   ZoneName,
 } from './types';
 
-export const LEVEL_WIDTH = 1600;
+export const LEVEL_WIDTH = 2064;
 export const LEVEL_MIN_Y = -220;
 export const LEVEL_HEIGHT = 360;
 export const DEATH_VOID_Y = LEVEL_HEIGHT + 36;
@@ -24,7 +25,7 @@ export const DEATH_FLASH_DURATION = 0.28;
 
 export const PLAYER_SIZE = 16;
 export const PLAYER_SPAWN_X = 56;
-export const PLAYER_SPAWN_Y = 280 - PLAYER_SIZE; // 264 (resting on entry walkway top y=280)
+export const PLAYER_SPAWN_Y = 280 - PLAYER_SIZE; // 264
 
 export const GRAPPLE_PLAYER_RANGE = 152;
 export const GRAPPLE_CURSOR_RANGE = 44;
@@ -47,13 +48,14 @@ export interface FacilityLevelData {
   lavaPits: LavaPitRect[];
   spikes: SpikeCluster[];
   checkpoints: CheckpointMarker[];
+  exitFlag: ExitFlagMarker;
   anchors: GrappleAnchor[];
   bounds: LevelBounds;
 }
 
 export function createFacilityLevel(): FacilityLevelData {
   const platforms: PlatformRect[] = [
-    // --- SECTION 1: ACCESS CORRIDOR (unchanged coordinates) ---
+    // --- SECTION 1: ACCESS CORRIDOR (unchanged) ---
     {
       x: 0,
       y: LEVEL_MIN_Y,
@@ -61,7 +63,6 @@ export function createFacilityLevel(): FacilityLevelData {
       height: LEVEL_HEIGHT - LEVEL_MIN_Y,
       kind: 'wall',
     },
-    // Entry Bay walkway
     {
       x: WALL_THICKNESS,
       y: 280,
@@ -69,7 +70,6 @@ export function createFacilityLevel(): FacilityLevelData {
       height: 80,
       kind: 'pad',
     },
-    // Walkway 2 after first lava gap (Spike 1)
     {
       x: 232,
       y: 272,
@@ -77,7 +77,6 @@ export function createFacilityLevel(): FacilityLevelData {
       height: 88,
       kind: 'platform',
     },
-    // Elevated Mid-Deck after second lava gap (Spike 2)
     {
       x: 460,
       y: 256,
@@ -85,7 +84,6 @@ export function createFacilityLevel(): FacilityLevelData {
       height: 104,
       kind: 'platform',
     },
-    // Checkpoint 1 Bay leading to Reactor Chasm
     {
       x: 692,
       y: 248,
@@ -94,8 +92,7 @@ export function createFacilityLevel(): FacilityLevelData {
       kind: 'platform',
     },
 
-    // --- SECTION 2: REACTOR CHASM LANDING BAY & SECTION 3: SERVICE SHAFT ---
-    // Landing Bay after Reactor Chasm (x=1280..1456), houses Checkpoint 2 and Service Shaft entry lip
+    // --- SECTION 2 & 3: REACTOR CHASM & SERVICE SHAFT (unchanged) ---
     {
       x: 1280,
       y: 248,
@@ -103,7 +100,6 @@ export function createFacilityLevel(): FacilityLevelData {
       height: 112,
       kind: 'platform',
     },
-    // Service Shaft left wall (above entry doorway y=176)
     {
       x: 1424,
       y: LEVEL_MIN_Y,
@@ -111,23 +107,23 @@ export function createFacilityLevel(): FacilityLevelData {
       height: 176 - LEVEL_MIN_Y,
       kind: 'wall',
     },
-    // Service Shaft right outer wall (full height down to floor)
+    // Service Shaft right wall up to top-exit threshold (-116)
     {
-      x: LEVEL_WIDTH - WALL_THICKNESS,
-      y: LEVEL_MIN_Y,
+      x: 1584,
+      y: -116,
       width: WALL_THICKNESS,
-      height: LEVEL_HEIGHT - LEVEL_MIN_Y,
+      height: LEVEL_HEIGHT - -116,
       kind: 'wall',
     },
-    // Service Shaft top ceiling cap
+    // Service Shaft ceiling cap
     {
       x: 1424,
       y: LEVEL_MIN_Y,
-      width: LEVEL_WIDTH - 1424,
+      width: 176,
       height: 16,
       kind: 'wall',
     },
-    // Top platform of Service Shaft (open swing gap on right x=1516..1584)
+    // Top platform of Service Shaft
     {
       x: 1440,
       y: -116,
@@ -135,62 +131,79 @@ export function createFacilityLevel(): FacilityLevelData {
       height: 14,
       kind: 'platform',
     },
+
+    // --- SECTION 4: CORE EXIT ---
+    // Core Exit Walkway 1 (after Service Shaft top gap x=1516..1584)
+    {
+      x: 1584,
+      y: -116,
+      width: 192,
+      height: 52,
+      kind: 'platform',
+    },
+    // Recessed lava basin walls & floor under Core Exit Lava Gap (x=1776..1824)
+    {
+      x: 1760,
+      y: -64,
+      width: 16,
+      height: 32,
+      kind: 'wall',
+    },
+    {
+      x: 1824,
+      y: -64,
+      width: 16,
+      height: 32,
+      kind: 'wall',
+    },
+    {
+      x: 1760,
+      y: -32,
+      width: 80,
+      height: 12,
+      kind: 'wall',
+    },
+    // Core Exit Final Walkway leading to exit flag
+    {
+      x: 1824,
+      y: -116,
+      width: 224,
+      height: 52,
+      kind: 'platform',
+    },
+    // Far right boundary wall
+    {
+      x: LEVEL_WIDTH - WALL_THICKNESS,
+      y: LEVEL_MIN_Y,
+      width: WALL_THICKNESS,
+      height: LEVEL_HEIGHT - LEVEL_MIN_Y,
+      kind: 'wall',
+    },
   ];
 
   const lavaPits: LavaPitRect[] = [
-    // Access Corridor Lava Pit 1
-    {
-      x: 184,
-      y: 336,
-      width: 48,
-      height: 24,
-    },
-    // Access Corridor Lava Pit 2
-    {
-      x: 408,
-      y: 336,
-      width: 52,
-      height: 24,
-    },
-    // Reactor Chasm wide lava pit (x=944..1280)
-    {
-      x: 944,
-      y: 336,
-      width: 336,
-      height: 24,
-    },
-    // Service Shaft bottom lava pool (x=1456..1584)
-    {
-      x: 1456,
-      y: 336,
-      width: 128,
-      height: 24,
-    },
+    // Access Corridor Lava Pit 1 & 2
+    { x: 184, y: 336, width: 48, height: 24 },
+    { x: 408, y: 336, width: 52, height: 24 },
+    // Reactor Chasm wide lava pit
+    { x: 944, y: 336, width: 336, height: 24 },
+    // Service Shaft bottom lava pool
+    { x: 1456, y: 336, width: 128, height: 24 },
+    // Core Exit Lava Gap (x=1776..1824)
+    { x: 1776, y: -56, width: 48, height: 24 },
   ];
 
   const spikes: SpikeCluster[] = [
-    // Access Corridor Spike 1
-    {
-      x: 308,
-      baseY: 272,
-      count: 3,
-    },
-    // Access Corridor Spike 2
-    {
-      x: 540,
-      baseY: 256,
-      count: 3,
-    },
-    // Access Corridor Spike 3
-    {
-      x: 884,
-      baseY: 248,
-      count: 2,
-    },
+    // Access Corridor Spikes
+    { x: 308, baseY: 272, count: 3 },
+    { x: 540, baseY: 256, count: 3 },
+    { x: 884, baseY: 248, count: 2 },
+    // Core Exit Spikes
+    { x: 1668, baseY: -116, count: 3 },
+    { x: 1896, baseY: -116, count: 3 },
   ];
 
   const checkpoints: CheckpointMarker[] = [
-    // Checkpoint 1: End of Access Corridor
     {
       id: 'cp-corridor',
       x: 816,
@@ -199,7 +212,6 @@ export function createFacilityLevel(): FacilityLevelData {
       height: 26,
       reached: false,
     },
-    // Checkpoint 2: After Reactor Chasm
     {
       id: 'cp-chasm',
       x: 1344,
@@ -208,7 +220,6 @@ export function createFacilityLevel(): FacilityLevelData {
       height: 26,
       reached: false,
     },
-    // Checkpoint 3: Top of Service Shaft
     {
       id: 'cp-shaft-top',
       x: 1468,
@@ -219,11 +230,16 @@ export function createFacilityLevel(): FacilityLevelData {
     },
   ];
 
+  const exitFlag: ExitFlagMarker = {
+    x: 1988,
+    baseY: -116,
+    width: 18,
+    height: 32,
+  };
+
   const anchors: GrappleAnchor[] = [
-    // Reactor Chasm: 2 suspended anchors
     { id: 'chasm-1', x: 1036, y: 166 },
     { id: 'chasm-2', x: 1192, y: 166 },
-    // Service Shaft: 3 anchors alternating right -> left -> right walls
     { id: 'shaft-1', x: 1556, y: 166 },
     { id: 'shaft-2', x: 1464, y: 66 },
     { id: 'shaft-3', x: 1556, y: -34 },
@@ -234,6 +250,7 @@ export function createFacilityLevel(): FacilityLevelData {
     lavaPits,
     spikes,
     checkpoints,
+    exitFlag,
     anchors,
     bounds: {
       minX: 0,
@@ -349,6 +366,15 @@ export function getCheckpointHitbox(checkpoint: CheckpointMarker): SimpleRect {
   };
 }
 
+export function getExitFlagHitbox(flag: ExitFlagMarker): SimpleRect {
+  return {
+    x: flag.x,
+    y: flag.baseY - flag.height,
+    width: flag.width,
+    height: flag.height,
+  };
+}
+
 export function findAttachableAnchor(
   player: PlayerBody,
   mouseWorldX: number,
@@ -399,13 +425,11 @@ export function applyPendulumConstraint(
   const nx = dx / dist;
   const ny = dy / dist;
 
-  // Constrain player's distance to anchor to fixed ropeLength
   const constrainedPx = anchor.x + nx * ropeLength;
   const constrainedPy = anchor.y + ny * ropeLength;
   player.x = constrainedPx - player.width / 2;
   player.y = constrainedPy - player.height / 2;
 
-  // Remove the radial component of velocity so the player swings smoothly
   const radialVel = player.vx * nx + player.vy * ny;
   player.vx -= radialVel * nx;
   player.vy -= radialVel * ny;
@@ -413,8 +437,16 @@ export function applyPendulumConstraint(
 
 export function resolveZoneName(
   playerX: number,
+  playerY: number,
   currentZone: ZoneName,
 ): ZoneName {
+  if (playerX >= 1580 && playerY <= -60) {
+    return 'CORE EXIT';
+  }
+  if (currentZone === 'CORE EXIT') {
+    if (playerX < 1550) return 'SERVICE SHAFT';
+    return 'CORE EXIT';
+  }
   if (currentZone === 'ACCESS CORRIDOR') {
     if (playerX >= 1432) return 'SERVICE SHAFT';
     if (playerX >= 930) return 'REACTOR CHASM';
@@ -455,16 +487,25 @@ export function stepPlayerPhysics(
   respawnPoint: RespawnPoint = { x: PLAYER_SPAWN_X, y: PLAYER_SPAWN_Y },
   anchors: GrappleAnchor[] = [],
   grapple: GrappleState = { activeAnchorId: null, ropeLength: 0 },
-): { died: boolean; checkpointActivated: boolean; grappleAttached: boolean } {
+  exitFlag?: ExitFlagMarker,
+): {
+  died: boolean;
+  checkpointActivated: boolean;
+  grappleAttached: boolean;
+  won: boolean;
+} {
   if (dt <= 0) {
-    return { died: false, checkpointActivated: false, grappleAttached: false };
+    return {
+      died: false,
+      checkpointActivated: false,
+      grappleAttached: false,
+      won: false,
+    };
   }
 
   let grappleAttached = false;
 
-  // 0. Grapple attach / release handling
   if (!input.mouseDown) {
-    // Releasing mouse button lets go, preserving current momentum
     grapple.activeAnchorId = null;
   } else if (input.mouseJustPressed && grapple.activeAnchorId === null) {
     const target = findAttachableAnchor(
@@ -492,7 +533,6 @@ export function stepPlayerPhysics(
       : null;
 
   if (activeAnchor) {
-    // Pendulum swing physics: optional gentle tangential air control + gravity + fixed rope constraint
     const moveDir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
     if (moveDir !== 0) {
       player.facing = moveDir > 0 ? 1 : -1;
@@ -505,7 +545,6 @@ export function stepPlayerPhysics(
 
     applyPendulumConstraint(player, activeAnchor, grapple.ropeLength);
   } else {
-    // Standard 2D platformer movement physics
     const moveDir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
     if (moveDir !== 0) {
       player.facing = moveDir > 0 ? 1 : -1;
@@ -525,33 +564,26 @@ export function stepPlayerPhysics(
       }
     }
 
-    // Single jump (only when grounded)
     if (input.jumpJustPressed && player.grounded) {
       player.vy = PHYSICS.jumpVelocity;
       player.grounded = false;
     }
 
-    // Gravity
     player.vy = Math.min(PHYSICS.maxFallSpeed, player.vy + PHYSICS.gravity * dt);
-
-    // Integrate position
     player.x += player.vx * dt;
     player.y += player.vy * dt;
   }
 
-  // AABB collision against solid platforms (resolve smaller overlap axis)
   player.grounded = false;
   for (let i = 0; i < platforms.length; i++) {
     resolveAabbCollision(player, platforms[i]);
   }
 
-  // Clamp top ceiling
   if (player.y < bounds.minY) {
     player.y = bounds.minY;
     if (player.vy < 0) player.vy = 0;
   }
 
-  // Checkpoint activation checks
   let checkpointActivated = false;
   for (let i = 0; i < checkpoints.length; i++) {
     const cp = checkpoints[i];
@@ -563,7 +595,6 @@ export function stepPlayerPhysics(
     }
   }
 
-  // Instant death hazards: lava pits, spike obstacles, or safety-net void fall
   let died = player.y > bounds.deathVoidY;
 
   if (!died) {
@@ -587,9 +618,21 @@ export function stepPlayerPhysics(
   if (died) {
     grapple.activeAnchorId = null;
     respawnPlayerAt(player, respawnPoint);
+    return {
+      died: true,
+      checkpointActivated,
+      grappleAttached,
+      won: false,
+    };
   }
 
-  return { died, checkpointActivated, grappleAttached };
+  const won =
+    exitFlag !== undefined && rectsOverlap(player, getExitFlagHitbox(exitFlag));
+  if (won) {
+    grapple.activeAnchorId = null;
+  }
+
+  return { died: false, checkpointActivated, grappleAttached, won };
 }
 
 export function clampCameraToBounds(

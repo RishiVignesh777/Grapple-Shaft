@@ -3,6 +3,7 @@ import { GameCanvas } from './components/GameCanvas';
 import { PauseModal } from './components/PauseModal';
 import { PlayingHud } from './components/PlayingHud';
 import { TitleOverlay } from './components/TitleOverlay';
+import { WinOverlay } from './components/WinOverlay';
 import { soundEngine } from './game/sound';
 import {
   resolveInitialScreenState,
@@ -16,6 +17,7 @@ export default function App() {
       typeof window !== 'undefined' ? window.location.search : '',
     ),
   );
+  const [runId, setRunId] = useState<number>(0);
   const [muted, setMuted] = useState<boolean>(false);
   const [zoneLabel, setZoneLabel] = useState<ZoneName>('ACCESS CORRIDOR');
   const [zoneLabelVisible, setZoneLabelVisible] = useState<boolean>(false);
@@ -75,6 +77,23 @@ export default function App() {
     setScreenState((prev) => transitionGameState(prev, 'START'));
   }, []);
 
+  const handleWin = useCallback(() => {
+    keysPressedRef.current.clear();
+    setZoneLabelVisible(false);
+    setScreenState((prev) => transitionGameState(prev, 'WIN'));
+  }, []);
+
+  const handleRestartRun = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    keysPressedRef.current.clear();
+    zoneEnteredRef.current = false;
+    setRunId((id) => id + 1);
+    soundEngine.playStartChime();
+    setScreenState((prev) => transitionGameState(prev, 'RESTART_RUN'));
+  }, []);
+
   const handlePause = useCallback(() => {
     keysPressedRef.current.clear();
     soundEngine.playPauseToggle(true);
@@ -92,6 +111,7 @@ export default function App() {
 
   const handleReturnTitle = useCallback(() => {
     keysPressedRef.current.clear();
+    setRunId((id) => id + 1);
     setScreenState((prev) => transitionGameState(prev, 'RETURN_TITLE'));
   }, []);
 
@@ -114,6 +134,15 @@ export default function App() {
       ) {
         event.preventDefault();
         handleStart();
+        return;
+      }
+
+      if (
+        screenState === 'won' &&
+        (event.code === 'Space' || event.code === 'Enter')
+      ) {
+        event.preventDefault();
+        handleRestartRun();
         return;
       }
 
@@ -153,11 +182,16 @@ export default function App() {
       window.removeEventListener('blur', clearHeldKeys);
       document.removeEventListener('visibilitychange', clearHeldKeys);
     };
-  }, [screenState, handleStart, handleToggleMute]);
+  }, [screenState, handleStart, handleRestartRun, handleToggleMute]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#0a0e14]">
-      <GameCanvas screenState={screenState} onZoneEnter={triggerZoneBanner} />
+      <GameCanvas
+        screenState={screenState}
+        runId={runId}
+        onZoneEnter={triggerZoneBanner}
+        onWin={handleWin}
+      />
 
       {screenState === 'title' && <TitleOverlay onStart={handleStart} />}
 
@@ -177,6 +211,8 @@ export default function App() {
           onReturnTitle={handleReturnTitle}
         />
       )}
+
+      {screenState === 'won' && <WinOverlay onRestart={handleRestartRun} />}
     </div>
   );
 }

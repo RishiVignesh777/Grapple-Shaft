@@ -139,6 +139,7 @@ export function createInitialShellState(): ShellSimulationState {
     lavaPits: level.lavaPits,
     spikes: level.spikes,
     checkpoints: level.checkpoints,
+    exitFlag: level.exitFlag,
     anchors: level.anchors,
     grapple: {
       activeAnchorId: null,
@@ -172,8 +173,9 @@ export function stepShellState(
     checkpointActivated: false,
     grappleAttached: false,
     enteredZone: null,
+    won: false,
   };
-  if (screenState === 'paused') {
+  if (screenState === 'paused' || screenState === 'won') {
     state.grapple.activeAnchorId = null;
     state.hoveredAnchorId = null;
     return noEvents;
@@ -208,7 +210,6 @@ export function stepShellState(
     return noEvents;
   }
 
-  // Playing state
   state.panelScrollY = (state.panelScrollY + 6 * dt) % 4096;
 
   if (state.deathFlashTimer > 0) {
@@ -227,9 +228,9 @@ export function stepShellState(
     state.respawnPoint,
     state.anchors,
     state.grapple,
+    state.exitFlag,
   );
 
-  // Update hovered anchor indicator when not actively grappling
   if (state.grapple.activeAnchorId === null) {
     const candidate = findAttachableAnchor(
       state.player,
@@ -242,8 +243,11 @@ export function stepShellState(
     state.hoveredAnchorId = state.grapple.activeAnchorId;
   }
 
-  // Check zone transitions
-  const nextZone = resolveZoneName(state.player.x, state.currentZone);
+  const nextZone = resolveZoneName(
+    state.player.x,
+    state.player.y,
+    state.currentZone,
+  );
   let enteredZone: StepEvents['enteredZone'] = null;
   if (nextZone !== state.currentZone) {
     state.currentZone = nextZone;
@@ -265,5 +269,6 @@ export function stepShellState(
     checkpointActivated: events.checkpointActivated,
     grappleAttached: events.grappleAttached,
     enteredZone,
+    won: events.won,
   };
 }
