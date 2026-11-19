@@ -29,6 +29,32 @@ export interface PlatformRect {
   kind?: 'pad' | 'wall' | 'platform' | 'block';
 }
 
+export interface SpikeCluster {
+  x: number;
+  baseY: number;
+  count: number;
+}
+
+export interface LavaPitRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface CheckpointMarker {
+  x: number;
+  baseY: number;
+  width: number;
+  height: number;
+  reached: boolean;
+}
+
+export interface RespawnPoint {
+  x: number;
+  y: number;
+}
+
 export interface PlayerBody {
   x: number;
   y: number;
@@ -49,7 +75,7 @@ export interface PlayerInputState {
 export interface LevelBounds {
   width: number;
   height: number;
-  lavaTopY: number;
+  deathVoidY: number;
 }
 
 export interface ViewportMetrics {
@@ -60,12 +86,23 @@ export interface ViewportMetrics {
   pixelScale: number;
 }
 
+export interface StepEvents {
+  died: boolean;
+  checkpointActivated: boolean;
+}
+
 export interface ShellSimulationState {
   elapsedTime: number;
   panelScrollY: number;
   camera: CameraState;
   player: PlayerBody;
   platforms: PlatformRect[];
+  lavaPits: LavaPitRect[];
+  spikes: SpikeCluster[];
+  checkpoint: CheckpointMarker;
+  respawnPoint: RespawnPoint;
+  deathFlashTimer: number;
+  deathCount: number;
   bounds: LevelBounds;
   stars: Star[];
   starTileWidth: number;

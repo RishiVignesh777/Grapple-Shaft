@@ -17,11 +17,53 @@ export default function App() {
     ),
   );
   const [muted, setMuted] = useState<boolean>(false);
+  const [zoneLabelVisible, setZoneLabelVisible] = useState<boolean>(false);
   const keysPressedRef = useRef<Set<string>>(new Set());
+  const zoneEnteredRef = useRef<boolean>(false);
+  const zoneTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     document.body.dataset.state = screenState;
   }, [screenState]);
+
+  const triggerZoneBanner = useCallback(() => {
+    if (zoneTimerRef.current !== null) {
+      window.clearTimeout(zoneTimerRef.current);
+      zoneTimerRef.current = null;
+    }
+    setZoneLabelVisible(true);
+    zoneTimerRef.current = window.setTimeout(() => {
+      setZoneLabelVisible(false);
+      zoneTimerRef.current = null;
+    }, 2400);
+  }, []);
+
+  useEffect(() => {
+    if (screenState === 'playing' && !zoneEnteredRef.current) {
+      zoneEnteredRef.current = true;
+      // Short frame delay ensures CSS opacity transition fades in smoothly
+      const enterRaf = window.requestAnimationFrame(() => {
+        triggerZoneBanner();
+      });
+      return () => window.cancelAnimationFrame(enterRaf);
+    }
+    if (screenState === 'title') {
+      zoneEnteredRef.current = false;
+      setZoneLabelVisible(false);
+      if (zoneTimerRef.current !== null) {
+        window.clearTimeout(zoneTimerRef.current);
+        zoneTimerRef.current = null;
+      }
+    }
+  }, [screenState, triggerZoneBanner]);
+
+  useEffect(() => {
+    return () => {
+      if (zoneTimerRef.current !== null) {
+        window.clearTimeout(zoneTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleStart = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) {
@@ -121,6 +163,7 @@ export default function App() {
       {screenState === 'playing' && (
         <PlayingHud
           muted={muted}
+          zoneLabelVisible={zoneLabelVisible}
           onToggleMute={handleToggleMute}
           onPause={handlePause}
         />

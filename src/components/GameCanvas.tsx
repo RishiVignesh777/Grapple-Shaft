@@ -5,6 +5,7 @@ import {
   createInitialShellState,
   stepShellState,
 } from '../game/shellLogic';
+import { soundEngine } from '../game/sound';
 import type { GameScreenState, PlayerInputState } from '../game/types';
 
 interface GameCanvasProps {
@@ -21,7 +22,6 @@ export function GameCanvas({ screenState }: GameCanvasProps) {
 
   useEffect(() => {
     screenStateRef.current = screenState;
-    // Clear held inputs across state transitions so Start Space never fires a jump
     heldKeysRef.current.clear();
     jumpQueuedRef.current = false;
   }, [screenState]);
@@ -112,6 +112,8 @@ export function GameCanvas({ screenState }: GameCanvasProps) {
       canvas.dataset.grounded = String(sim.player.grounded);
       canvas.dataset.cameraX = String(Math.round(sim.camera.x));
       canvas.dataset.cameraY = String(Math.round(sim.camera.y));
+      canvas.dataset.deaths = String(sim.deathCount);
+      canvas.dataset.checkpointReached = String(sim.checkpoint.reached);
     };
 
     let rafId = 0;
@@ -129,13 +131,20 @@ export function GameCanvas({ screenState }: GameCanvasProps) {
       };
       jumpQueuedRef.current = false;
 
-      stepShellState(
+      const events = stepShellState(
         simStateRef.current,
         rawDt,
         screenStateRef.current,
         viewport,
         input,
       );
+
+      if (events.died) {
+        soundEngine.playDeathBlip();
+      } else if (events.checkpointActivated) {
+        soundEngine.playCheckpointChime();
+      }
+
       renderShellFrame(
         ctx,
         simStateRef.current,

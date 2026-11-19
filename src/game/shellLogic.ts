@@ -1,11 +1,11 @@
 import { PALETTE } from './palette';
 import {
-  LAVA_TOP_Y,
-  LEVEL_HEIGHT,
-  LEVEL_WIDTH,
+  DEATH_FLASH_DURATION,
+  PLAYER_SPAWN_X,
+  PLAYER_SPAWN_Y,
   computeTargetCamera,
+  createAccessCorridorLevel,
   createInitialPlayer,
-  createTestPlatforms,
   stepPlayerPhysics,
   updateCameraFollow,
 } from './physics';
@@ -14,6 +14,7 @@ import type {
   PlayerInputState,
   ShellSimulationState,
   Star,
+  StepEvents,
   ViewportMetrics,
 } from './types';
 
@@ -118,21 +119,27 @@ export function computeParallaxOffset(
 
 export function createInitialShellState(): ShellSimulationState {
   const player = createInitialPlayer();
-  const bounds = {
-    width: LEVEL_WIDTH,
-    height: LEVEL_HEIGHT,
-    lavaTopY: LAVA_TOP_Y,
-  };
+  const level = createAccessCorridorLevel();
+
   return {
     elapsedTime: 0,
     panelScrollY: 0,
     camera: {
-      x: (LEVEL_WIDTH - 360) / 2,
-      y: LEVEL_HEIGHT - 225,
+      x: 0,
+      y: level.bounds.height - 225,
     },
     player,
-    platforms: createTestPlatforms(),
-    bounds,
+    platforms: level.platforms,
+    lavaPits: level.lavaPits,
+    spikes: level.spikes,
+    checkpoint: level.checkpoint,
+    respawnPoint: {
+      x: PLAYER_SPAWN_X,
+      y: PLAYER_SPAWN_Y,
+    },
+    deathFlashTimer: 0,
+    deathCount: 0,
+    bounds: level.bounds,
     stars: createStarfield(2026, 48, STAR_TILE_WIDTH, STAR_TILE_HEIGHT),
     starTileWidth: STAR_TILE_WIDTH,
     starTileHeight: STAR_TILE_HEIGHT,
@@ -146,9 +153,10 @@ export function stepShellState(
   screenState: GameScreenState,
   viewport?: ViewportMetrics,
   input: PlayerInputState = EMPTY_INPUT,
-): void {
+): StepEvents {
+  const noEvents: StepEvents = { died: false, checkpointActivated: false };
   if (screenState === 'paused') {
-    return;
+    return noEvents;
   }
 
   const vw = viewport?.virtualWidth ?? 360;
@@ -163,22 +171,50 @@ export function stepShellState(
 
   const dt = clampDeltaTime(rawDtSeconds);
   if (dt <= 0) {
-    return;
+    return noEvents;
   }
 
   state.elapsedTime += dt;
 
   if (screenState === 'title') {
-    // Keep title screen's gentle scenic background scroll with stationary player
     state.panelScrollY = (state.panelScrollY + 14 * dt) % 4096;
     const baseCam = computeTargetCamera(state.player, vw, vh, state.bounds);
-    state.camera.x = baseCam.x + Math.sin(state.elapsedTime * 0.42) * 14;
+    state.camera.x = Math.max(
+      0,
+      baseCam.x + (1 + Math.sin(state.elapsedTime * 0.42)) * 8,
+    );
     state.camera.y = baseCam.y;
-    return;
+    return noEvents;
   }
 
-  // Playing state: subtle ambient panel drift + real platformer physics & clamped smooth camera
+  // Playing state
   state.panelScrollY = (state.panelScrollY + 6 * dt) % 4096;
-  stepPlayerPhysics(state.player, input, state.platforms, state.bounds, dt);
-  updateCameraFollow(state.camera, state.player, vw, vh, state.bounds, dt);
+
+  if (state.deathFlashTimer > 0) {
+    state.deathFlashTimer = Math.max(0, state.deathFlashTimer - dt);
+  }
+
+  const events = stepPlayerPhysics(
+    state.player,
+    input,
+    state.platforms,
+    state.bounds,
+    dt,
+    state.lavaPits,
+    state.spikes,
+    state.checkpoint,
+    state.respawnPoint,
+  );
+
+  if (events.died) {
+    state.deathCount += 1;
+    state.deathFlashTimer = DEATH_FLASH_DURATION;
+    const respawnCam = computeTargetCamera(state.player, vw, vh, state.bounds);
+    state.camera.x = respawnCam.x;
+    state.camera.y = respawnCam.y;
+  } else {
+    updateCameraFollow(state.camera, state.player, vw, vh, state.bounds, dt);
+  }
+
+  return events;
 }

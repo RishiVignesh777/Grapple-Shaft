@@ -1,11 +1,13 @@
 interface PlayingHudProps {
   muted: boolean;
+  zoneLabelVisible: boolean;
   onToggleMute: () => void;
   onPause: () => void;
 }
 
 export function PlayingHud({
   muted,
+  zoneLabelVisible,
   onToggleMute,
   onPause,
 }: PlayingHudProps) {
@@ -115,6 +117,24 @@ export function PlayingHud({
               <rect x="10" y="2" width="3" height="12" fill="currentColor" />
             </svg>
           </button>
+        </div>
+      </div>
+
+      {/* Small on-screen zone entry banner (fades in/out) */}
+      <div
+        data-testid="zone-label"
+        aria-live="polite"
+        className={`pointer-events-none fixed left-1/2 top-20 -translate-x-1/2 text-center transition-opacity duration-500 ${
+          zoneLabelVisible ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        <div
+          className="border-b-2 border-[#39ff8f] bg-[#0a0e14]/75 px-4 py-1.5"
+          style={{ boxShadow: '0 2px 12px rgba(10, 14, 20, 0.7)' }}
+        >
+          <span className="font-pixel text-xs font-bold tracking-[0.2em] text-[#39ff8f] sm:text-sm">
+            ACCESS CORRIDOR
+          </span>
         </div>
       </div>
     </div>

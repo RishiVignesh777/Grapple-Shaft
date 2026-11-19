@@ -1,20 +1,26 @@
 import type {
   CameraState,
+  CheckpointMarker,
+  LavaPitRect,
   LevelBounds,
   PlatformRect,
   PlayerBody,
   PlayerInputState,
+  RespawnPoint,
+  SpikeCluster,
 } from './types';
 
-export const LEVEL_WIDTH = 560;
+export const LEVEL_WIDTH = 960;
 export const LEVEL_HEIGHT = 360;
+export const DEATH_VOID_Y = LEVEL_HEIGHT + 36;
 export const WALL_THICKNESS = 16;
-export const LAVA_HEIGHT = 14;
-export const LAVA_TOP_Y = LEVEL_HEIGHT - LAVA_HEIGHT;
+export const SPIKE_WIDTH = 7;
+export const SPIKE_HEIGHT = 8;
+export const DEATH_FLASH_DURATION = 0.28;
 
 export const PLAYER_SIZE = 16;
-export const PLAYER_SPAWN_X = LEVEL_WIDTH / 2 - PLAYER_SIZE / 2; // 272
-export const PLAYER_SPAWN_Y = 297 - PLAYER_SIZE; // 281 (resting on central pad top y=297)
+export const PLAYER_SPAWN_X = 56;
+export const PLAYER_SPAWN_Y = 280 - PLAYER_SIZE; // 264 (resting on entry walkway top y=280)
 
 export const PHYSICS = {
   gravity: 980,
@@ -28,8 +34,16 @@ export const PHYSICS = {
   cameraFollowSpeed: 7.5,
 } as const;
 
-export function createTestPlatforms(): PlatformRect[] {
-  return [
+export interface AccessCorridorLevel {
+  platforms: PlatformRect[];
+  lavaPits: LavaPitRect[];
+  spikes: SpikeCluster[];
+  checkpoint: CheckpointMarker;
+  bounds: LevelBounds;
+}
+
+export function createAccessCorridorLevel(): AccessCorridorLevel {
+  const platforms: PlatformRect[] = [
     // Solid left & right shaft boundary walls
     {
       x: 0,
@@ -45,86 +59,97 @@ export function createTestPlatforms(): PlatformRect[] {
       height: LEVEL_HEIGHT,
       kind: 'wall',
     },
-    // Lower side spike ledges (solid base)
+    // Section 1: Entry Bay walkway
     {
       x: WALL_THICKNESS,
-      y: LEVEL_HEIGHT - 16,
-      width: 32,
-      height: 16,
-      kind: 'wall',
-    },
-    {
-      x: LEVEL_WIDTH - WALL_THICKNESS - 32,
-      y: LEVEL_HEIGHT - 16,
-      width: 32,
-      height: 16,
-      kind: 'wall',
-    },
-    // Central starting pad
-    {
-      x: 232,
-      y: 297,
-      width: 96,
-      height: 12,
+      y: 280,
+      width: 168,
+      height: 80,
       kind: 'pad',
     },
-    // Left stepping platform
+    // Section 2: Walkway after first lava gap (contains first spike obstacle)
     {
-      x: 136,
+      x: 232,
       y: 272,
-      width: 72,
-      height: 12,
+      width: 176,
+      height: 88,
       kind: 'platform',
     },
-    // Right stepping platform
+    // Section 3: Elevated Mid-Deck after second lava gap (contains second spike obstacle)
     {
-      x: 352,
-      y: 272,
-      width: 80,
-      height: 12,
+      x: 460,
+      y: 256,
+      width: 184,
+      height: 104,
       kind: 'platform',
     },
-    // Solid bulkhead block on right platform (tests horizontal side collision & step-up)
+    // Section 4: Checkpoint Bay near end of Access Corridor (over open safety-net gap)
     {
-      x: 408,
+      x: 692,
       y: 248,
-      width: 24,
-      height: 24,
-      kind: 'block',
-    },
-    // Overhead test platform above left step (tests head-bump from left step & top-landing from upper-left)
-    {
-      x: 140,
-      y: 214,
-      width: 64,
-      height: 12,
-      kind: 'platform',
-    },
-    // Upper-left platform (tests left/up camera follow)
-    {
-      x: 48,
-      y: 224,
-      width: 76,
-      height: 12,
-      kind: 'platform',
-    },
-    // High peak platform (tests vertical camera follow & upper bounds)
-    {
-      x: 152,
-      y: 184,
-      width: 72,
-      height: 12,
-      kind: 'platform',
-    },
-    // Upper-right platform (tests right/up camera follow)
-    {
-      x: 444,
-      y: 214,
-      width: 76,
-      height: 12,
+      width: LEVEL_WIDTH - WALL_THICKNESS - 692,
+      height: 112,
       kind: 'platform',
     },
   ];
+
+  const lavaPits: LavaPitRect[] = [
+    // Lava Pit 1 (between Entry Bay 184 and Walkway 2 at 232)
+    {
+      x: 184,
+      y: 336,
+      width: 48,
+      height: 24,
+    },
+    // Lava Pit 2 (between Walkway 2 at 408 and Mid-Deck at 460)
+    {
+      x: 408,
+      y: 336,
+      width: 52,
+      height: 24,
+    },
+  ];
+
+  const spikes: SpikeCluster[] = [
+    // Spike obstacle 1 on Walkway 2
+    {
+      x: 308,
+      baseY: 272,
+      count: 3,
+    },
+    // Spike obstacle 2 on Mid-Deck
+    {
+      x: 540,
+      baseY: 256,
+      count: 3,
+    },
+    // Spike obstacle 3 past the checkpoint marker (allows quick checkpoint respawn test)
+    {
+      x: 884,
+      baseY: 248,
+      count: 2,
+    },
+  ];
+
+  const checkpoint: CheckpointMarker = {
+    x: 816,
+    baseY: 248,
+    width: 14,
+    height: 26,
+    reached: false,
+  };
+
+  return {
+    platforms,
+    lavaPits,
+    spikes,
+    checkpoint,
+    bounds: {
+      width: LEVEL_WIDTH,
+      height: LEVEL_HEIGHT,
+      deathVoidY: DEATH_VOID_Y,
+    },
+  };
 }
 
 export function createInitialPlayer(): PlayerBody {
@@ -197,14 +222,67 @@ export function resolveAabbCollision(
   }
 }
 
+export interface SimpleRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export function rectsOverlap(a: SimpleRect, b: SimpleRect): boolean {
+  return (
+    a.x < b.x + b.width &&
+    a.x + a.width > b.x &&
+    a.y < b.y + b.height &&
+    a.y + a.height > b.y
+  );
+}
+
+export function getSpikeHitbox(cluster: SpikeCluster): SimpleRect {
+  const totalWidth = cluster.count * SPIKE_WIDTH;
+  // Slightly inset horizontally & from the pixel tip so visual grazes feel fair
+  return {
+    x: cluster.x + 2,
+    y: cluster.baseY - SPIKE_HEIGHT + 2,
+    width: Math.max(2, totalWidth - 4),
+    height: SPIKE_HEIGHT - 2,
+  };
+}
+
+export function getCheckpointHitbox(checkpoint: CheckpointMarker): SimpleRect {
+  return {
+    x: checkpoint.x,
+    y: checkpoint.baseY - checkpoint.height,
+    width: checkpoint.width,
+    height: checkpoint.height,
+  };
+}
+
+export function respawnPlayerAt(
+  player: PlayerBody,
+  respawnPoint: RespawnPoint,
+): void {
+  player.x = respawnPoint.x;
+  player.y = respawnPoint.y;
+  player.vx = 0;
+  player.vy = 0;
+  player.grounded = true;
+}
+
 export function stepPlayerPhysics(
   player: PlayerBody,
   input: PlayerInputState,
   platforms: PlatformRect[],
   bounds: LevelBounds,
   dt: number,
-): void {
-  if (dt <= 0) return;
+  lavaPits: LavaPitRect[] = [],
+  spikes: SpikeCluster[] = [],
+  checkpoint?: CheckpointMarker,
+  respawnPoint: RespawnPoint = { x: PLAYER_SPAWN_X, y: PLAYER_SPAWN_Y },
+): { died: boolean; checkpointActivated: boolean } {
+  if (dt <= 0) {
+    return { died: false, checkpointActivated: false };
+  }
 
   // 1. Horizontal acceleration / friction & speed cap
   const moveDir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
@@ -245,19 +323,49 @@ export function stepPlayerPhysics(
     resolveAabbCollision(player, platforms[i]);
   }
 
-  // 6. Clamp top ceiling & respawn on bay pad if dropping into lava pit
+  // 6. Clamp top ceiling
   if (player.y < 0) {
     player.y = 0;
     if (player.vy < 0) player.vy = 0;
   }
 
-  if (player.y + player.height > bounds.lavaTopY + 2) {
-    player.x = PLAYER_SPAWN_X;
-    player.y = PLAYER_SPAWN_Y;
-    player.vx = 0;
-    player.vy = 0;
-    player.grounded = true;
+  // 7. Checkpoint activation check (before hazard checks if standing safely on bay)
+  let checkpointActivated = false;
+  if (checkpoint && !checkpoint.reached) {
+    if (rectsOverlap(player, getCheckpointHitbox(checkpoint))) {
+      checkpoint.reached = true;
+      respawnPoint.x = checkpoint.x - 1;
+      respawnPoint.y = checkpoint.baseY - player.height;
+      checkpointActivated = true;
+    }
   }
+
+  // 8. Instant death hazards: lava pits, spike obstacles, or safety-net void fall
+  let died = player.y > bounds.deathVoidY;
+
+  if (!died) {
+    for (let i = 0; i < lavaPits.length; i++) {
+      if (rectsOverlap(player, lavaPits[i])) {
+        died = true;
+        break;
+      }
+    }
+  }
+
+  if (!died) {
+    for (let i = 0; i < spikes.length; i++) {
+      if (rectsOverlap(player, getSpikeHitbox(spikes[i]))) {
+        died = true;
+        break;
+      }
+    }
+  }
+
+  if (died) {
+    respawnPlayerAt(player, respawnPoint);
+  }
+
+  return { died, checkpointActivated };
 }
 
 export function clampCameraToBounds(
