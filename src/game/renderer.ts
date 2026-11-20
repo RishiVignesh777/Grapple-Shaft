@@ -609,6 +609,7 @@ export function renderShellFrame(
   state: ShellSimulationState,
   viewport: ViewportMetrics,
   screenState: GameScreenState,
+  include2dScanlines = true,
 ): void {
   const { virtualWidth: vw, virtualHeight: vh } = viewport;
   const camX = Math.round(state.camera.x);
@@ -638,15 +639,17 @@ export function renderShellFrame(
   // 7. Pixel-art landing & grapple spark particles
   drawParticles(ctx, state.particles, camX, camY);
 
-  // 8. Subtle retro pixel scanlines
-  ctx.globalAlpha = screenState === 'title' ? 0.08 : 0.05;
-  ctx.fillStyle = '#000000';
-  for (let sy = 0; sy < vh; sy += 2) {
-    ctx.fillRect(0, sy, vw, 1);
+  // 8. Subtle retro pixel scanlines (fallback when CRT shader is not active)
+  if (include2dScanlines) {
+    ctx.globalAlpha = screenState === 'title' ? 0.08 : 0.05;
+    ctx.fillStyle = '#000000';
+    for (let sy = 0; sy < vh; sy += 2) {
+      ctx.fillRect(0, sy, vw, 1);
+    }
+    ctx.globalAlpha = 1;
   }
-  ctx.globalAlpha = 1;
 
-  // 8. Brief red full-screen flash on death
+  // 9. Brief red full-screen flash on death
   if (state.deathFlashTimer > 0) {
     const flashRatio = Math.min(1, state.deathFlashTimer / DEATH_FLASH_DURATION);
     ctx.globalAlpha = 0.55 * flashRatio;

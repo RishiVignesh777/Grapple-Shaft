@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { CrtShaderRenderer, computeCrtUniforms } from '../game/crtShader';
+import { DEATH_FLASH_DURATION } from '../game/physics';
 import { renderShellFrame } from '../game/renderer';
 import {
   computeVirtualViewport,
@@ -85,8 +87,18 @@ export function GameCanvas({
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
 
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) return;
+    const crtRenderer = CrtShaderRenderer.create(canvas);
+    const bufferCanvas = crtRenderer ? document.createElement('canvas') : canvas;
+    const ctx = bufferCanvas.getContext('2d', { alpha: false });
+    if (!ctx) {
+      if (crtRenderer) crtRenderer.dispose();
+      return;
+    }
+
+    const reducedMotionQuery =
+      typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-reduced-motion: reduce)')
+        : null;
 
     let viewport = computeVirtualViewport(
       container.clientWidth || window.innerWidth,
@@ -96,13 +108,23 @@ export function GameCanvas({
     const applyCanvasSize = (width: number, height: number) => {
       viewport = computeVirtualViewport(width, height);
       if (
-        canvas.width !== viewport.virtualWidth ||
-        canvas.height !== viewport.virtualHeight
+        bufferCanvas.width !== viewport.virtualWidth ||
+        bufferCanvas.height !== viewport.virtualHeight
       ) {
-        canvas.width = viewport.virtualWidth;
-        canvas.height = viewport.virtualHeight;
+        bufferCanvas.width = viewport.virtualWidth;
+        bufferCanvas.height = viewport.virtualHeight;
       }
       ctx.imageSmoothingEnabled = false;
+
+      if (crtRenderer) {
+        const displayW = Math.max(1, Math.floor(width));
+        const displayH = Math.max(1, Math.floor(height));
+        if (canvas.width !== displayW || canvas.height !== displayH) {
+          canvas.width = displayW;
+          canvas.height = displayH;
+        }
+        crtRenderer.resize(displayW, displayH);
+      }
     };
 
     applyCanvasSize(
@@ -202,6 +224,32 @@ export function GameCanvas({
         sim.checkpoints.filter((c) => c.reached).length,
       );
       canvas.dataset.particles = String(sim.particles.length);
+      canvas.dataset.crtShader = crtRenderer ? 'webgl' : 'fallback2d';
+    };
+
+    const drawPresentFrame = (sim: ReturnType<typeof createInitialShellState>) => {
+      renderShellFrame(
+        ctx,
+        sim,
+        viewport,
+        screenStateRef.current,
+        !crtRenderer,
+      );
+      if (crtRenderer) {
+        const flashRatio =
+          sim.deathFlashTimer > 0
+            ? Math.min(1, sim.deathFlashTimer / DEATH_FLASH_DURATION)
+            : 0;
+        const uniforms = computeCrtUniforms(
+          sim.elapsedTime,
+          flashRatio,
+          screenStateRef.current,
+          viewport.virtualWidth,
+          viewport.virtualHeight,
+          reducedMotionQuery?.matches ?? false,
+        );
+        crtRenderer.render(bufferCanvas, uniforms);
+      }
     };
 
     let rafId = 0;
@@ -261,7 +309,7 @@ export function GameCanvas({
         onZoneEnterRef.current(events.enteredZone);
       }
 
-      renderShellFrame(ctx, sim, viewport, screenStateRef.current);
+      drawPresentFrame(sim);
       syncTestAttributes();
 
       rafId = window.requestAnimationFrame(tick);
@@ -273,7 +321,7 @@ export function GameCanvas({
       screenStateRef.current,
       viewport,
     );
-    renderShellFrame(ctx, simStateRef.current, viewport, screenStateRef.current);
+    drawPresentFrame(simStateRef.current);
     syncTestAttributes();
     rafId = window.requestAnimationFrame(tick);
 
@@ -287,6 +335,9 @@ export function GameCanvas({
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('blur', clearInputs);
       document.removeEventListener('visibilitychange', clearInputs);
+      if (crtRenderer) {
+        crtRenderer.dispose();
+      }
     };
   }, []);
 
