@@ -201,6 +201,7 @@ export function GameCanvas({
       canvas.dataset.checkpointsReached = String(
         sim.checkpoints.filter((c) => c.reached).length,
       );
+      canvas.dataset.particles = String(sim.particles.length);
     };
 
     let rafId = 0;

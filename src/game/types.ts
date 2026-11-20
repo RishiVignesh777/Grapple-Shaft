@@ -119,8 +119,21 @@ export interface ViewportMetrics {
   pixelScale: number;
 }
 
+export interface SparkParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  size: 1 | 2;
+  color: string;
+  gravityScale: number;
+}
+
 export interface StepEvents {
   died: boolean;
+  landed: boolean;
   checkpointActivated: boolean;
   grappleAttached: boolean;
   enteredZone: ZoneName | null;
@@ -144,6 +157,9 @@ export interface ShellSimulationState {
   respawnPoint: RespawnPoint;
   deathFlashTimer: number;
   deathCount: number;
+  particles: SparkParticle[];
+  grappleSparkTimer: number;
+  particleSeed: number;
   bounds: LevelBounds;
   stars: Star[];
   starTileWidth: number;

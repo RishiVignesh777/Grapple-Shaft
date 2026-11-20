@@ -1,4 +1,5 @@
 import { PALETTE } from './palette';
+import { drawParticles } from './particles';
 import { DEATH_FLASH_DURATION, SPIKE_WIDTH } from './physics';
 import {
   PANEL_GRID_SIZE,
@@ -634,7 +635,10 @@ export function renderShellFrame(
   // 6. Player square
   drawPlayerSquare(ctx, state, camX, camY);
 
-  // 7. Subtle retro pixel scanlines
+  // 7. Pixel-art landing & grapple spark particles
+  drawParticles(ctx, state.particles, camX, camY);
+
+  // 8. Subtle retro pixel scanlines
   ctx.globalAlpha = screenState === 'title' ? 0.08 : 0.05;
   ctx.fillStyle = '#000000';
   for (let sy = 0; sy < vh; sy += 2) {

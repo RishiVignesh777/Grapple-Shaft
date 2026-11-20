@@ -490,6 +490,8 @@ export function stepPlayerPhysics(
   exitFlag?: ExitFlagMarker,
 ): {
   died: boolean;
+  landed: boolean;
+  landingSpeed: number;
   checkpointActivated: boolean;
   grappleAttached: boolean;
   won: boolean;
@@ -497,6 +499,8 @@ export function stepPlayerPhysics(
   if (dt <= 0) {
     return {
       died: false,
+      landed: false,
+      landingSpeed: 0,
       checkpointActivated: false,
       grappleAttached: false,
       won: false,
@@ -574,10 +578,14 @@ export function stepPlayerPhysics(
     player.y += player.vy * dt;
   }
 
+  const wasGrounded = player.grounded;
+  const preCollisionVy = player.vy;
   player.grounded = false;
   for (let i = 0; i < platforms.length; i++) {
     resolveAabbCollision(player, platforms[i]);
   }
+  const landed = !wasGrounded && player.grounded && preCollisionVy > 45;
+  const landingSpeed = landed ? preCollisionVy : 0;
 
   if (player.y < bounds.minY) {
     player.y = bounds.minY;
@@ -620,6 +628,8 @@ export function stepPlayerPhysics(
     respawnPlayerAt(player, respawnPoint);
     return {
       died: true,
+      landed: false,
+      landingSpeed: 0,
       checkpointActivated,
       grappleAttached,
       won: false,
@@ -632,7 +642,14 @@ export function stepPlayerPhysics(
     grapple.activeAnchorId = null;
   }
 
-  return { died: false, checkpointActivated, grappleAttached, won };
+  return {
+    died: false,
+    landed,
+    landingSpeed,
+    checkpointActivated,
+    grappleAttached,
+    won,
+  };
 }
 
 export function clampCameraToBounds(

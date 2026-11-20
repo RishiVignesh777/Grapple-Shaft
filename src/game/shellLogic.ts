@@ -1,5 +1,11 @@
 import { PALETTE } from './palette';
 import {
+  spawnGrappleSparks,
+  spawnGrappleTrailSpark,
+  spawnLandingSparks,
+  stepParticles,
+} from './particles';
+import {
   DEATH_FLASH_DURATION,
   PLAYER_SPAWN_X,
   PLAYER_SPAWN_Y,
@@ -153,6 +159,9 @@ export function createInitialShellState(): ShellSimulationState {
     },
     deathFlashTimer: 0,
     deathCount: 0,
+    particles: [],
+    grappleSparkTimer: 0,
+    particleSeed: 7331,
     bounds: level.bounds,
     stars: createStarfield(2026, 48, STAR_TILE_WIDTH, STAR_TILE_HEIGHT),
     starTileWidth: STAR_TILE_WIDTH,
@@ -170,6 +179,7 @@ export function stepShellState(
 ): StepEvents {
   const noEvents: StepEvents = {
     died: false,
+    landed: false,
     checkpointActivated: false,
     grappleAttached: false,
     enteredZone: null,
@@ -254,6 +264,53 @@ export function stepShellState(
     enteredZone = nextZone;
   }
 
+  if (events.landed) {
+    state.particleSeed = spawnLandingSparks(
+      state.particles,
+      state.player.x + state.player.width / 2,
+      state.player.y + state.player.height,
+      events.landingSpeed,
+      state.particleSeed,
+    );
+  }
+
+  if (events.grappleAttached && state.grapple.activeAnchorId !== null) {
+    const active = state.anchors.find(
+      (a) => a.id === state.grapple.activeAnchorId,
+    );
+    if (active) {
+      state.particleSeed = spawnGrappleSparks(
+        state.particles,
+        state.player.x + state.player.width / 2,
+        state.player.y + state.player.height / 2,
+        active.x,
+        active.y,
+        state.particleSeed,
+      );
+      state.grappleSparkTimer = 0.08;
+    }
+  } else if (state.grapple.activeAnchorId !== null) {
+    state.grappleSparkTimer -= dt;
+    if (state.grappleSparkTimer <= 0) {
+      state.grappleSparkTimer = 0.085;
+      const active = state.anchors.find(
+        (a) => a.id === state.grapple.activeAnchorId,
+      );
+      if (active) {
+        state.particleSeed = spawnGrappleTrailSpark(
+          state.particles,
+          active.x,
+          active.y,
+          state.particleSeed,
+        );
+      }
+    }
+  } else {
+    state.grappleSparkTimer = 0;
+  }
+
+  stepParticles(state.particles, dt);
+
   if (events.died) {
     state.deathCount += 1;
     state.deathFlashTimer = DEATH_FLASH_DURATION;
@@ -266,6 +323,7 @@ export function stepShellState(
 
   return {
     died: events.died,
+    landed: events.landed,
     checkpointActivated: events.checkpointActivated,
     grappleAttached: events.grappleAttached,
     enteredZone,
