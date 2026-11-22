@@ -12,6 +12,7 @@ import {
 } from './shellLogic';
 import type {
   CheckpointMarker,
+  EnergyShard,
   ExitFlagMarker,
   GameScreenState,
   GrappleAnchor,
@@ -396,6 +397,49 @@ function drawCheckpointMarker(
   ctx.globalAlpha = 1;
 }
 
+function drawEnergyShard(
+  ctx: CanvasRenderingContext2D,
+  state: ShellSimulationState,
+  shard: EnergyShard,
+  camX: number,
+  camY: number,
+): void {
+  if (shard.collected) return;
+
+  const bobY = Math.round(
+    Math.sin(state.elapsedTime * 3.8 + shard.x * 0.07) * 1.5,
+  );
+  const cx = Math.round(shard.x - camX);
+  const cy = Math.round(shard.y - camY) + bobY;
+  const pulse = 0.72 + 0.28 * Math.sin(state.elapsedTime * 5.6 + shard.x * 0.11);
+
+  // Subtle glowing cyan energy aura
+  ctx.globalAlpha = 0.24 * pulse;
+  ctx.fillStyle = PALETTE.cyanAccent;
+  ctx.fillRect(cx - 5, cy - 6, 10, 12);
+  ctx.globalAlpha = 1;
+
+  // Pixel-art dark crystal outline
+  ctx.fillStyle = PALETTE.bgVoid;
+  ctx.fillRect(cx - 1, cy - 5, 2, 10);
+  ctx.fillRect(cx - 3, cy - 3, 6, 6);
+  ctx.fillRect(cx - 4, cy - 1, 8, 2);
+
+  // Glowing cyan crystal body
+  ctx.fillStyle = PALETTE.cyanAccent;
+  ctx.fillRect(cx - 1, cy - 4, 2, 8);
+  ctx.fillRect(cx - 2, cy - 2, 4, 4);
+  ctx.fillRect(cx - 3, cy - 1, 6, 2);
+
+  // Shimmering white-cyan core highlight
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(cx - 1, cy - 2, 1, 3);
+  ctx.fillStyle = '#b8f6ff';
+  ctx.fillRect(cx, cy - 1, 1, 2);
+  ctx.globalAlpha = 1;
+}
+
 function drawExitFlag(
   ctx: CanvasRenderingContext2D,
   state: ShellSimulationState,
@@ -581,6 +625,11 @@ function drawCorridorWorld(
 
   // Core Exit goal flag
   drawExitFlag(ctx, state, state.exitFlag, camX, camY);
+
+  // Optional glowing cyan energy shards
+  for (let i = 0; i < state.shards.length; i++) {
+    drawEnergyShard(ctx, state, state.shards[i], camX, camY);
+  }
 
   // Glowing green grapple anchors
   for (let i = 0; i < state.anchors.length; i++) {

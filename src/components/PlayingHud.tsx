@@ -7,6 +7,8 @@ interface PlayingHudProps {
   zoneLabelVisible: boolean;
   checkpointBannerVisible: boolean;
   runTimeSeconds: number;
+  shardsCollected: number;
+  shardsTotal: number;
   onToggleMute: () => void;
   onPause: () => void;
 }
@@ -17,6 +19,8 @@ export function PlayingHud({
   zoneLabelVisible,
   checkpointBannerVisible,
   runTimeSeconds,
+  shardsCollected,
+  shardsTotal,
   onToggleMute,
   onPause,
 }: PlayingHudProps) {
@@ -49,15 +53,41 @@ export function PlayingHud({
             </div>
           </div>
 
-          <div
-            data-testid="speedrun-timer"
-            aria-label="Run timer"
-            className="border-2 border-[#2c4560] bg-[#1b2838]/90 px-3 py-1"
-            style={{ boxShadow: '0 0 0 2px #0a0e14' }}
-          >
-            <span className="font-code text-xs font-semibold tracking-wider text-[#39ff8f] tabular-nums sm:text-sm">
-              {formatSpeedrunTime(runTimeSeconds)}
-            </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              data-testid="speedrun-timer"
+              aria-label="Run timer"
+              className="flex h-8 items-center border-2 border-[#2c4560] bg-[#1b2838]/90 px-3"
+              style={{ boxShadow: '0 0 0 2px #0a0e14' }}
+            >
+              <span className="font-code text-xs leading-none font-semibold tracking-wider text-[#39ff8f] tabular-nums sm:text-sm">
+                {formatSpeedrunTime(runTimeSeconds)}
+              </span>
+            </div>
+
+            <div
+              data-testid="shard-counter"
+              aria-label="Energy shards collected"
+              className="flex h-8 items-center gap-1.5 border-2 border-[#2c4560] bg-[#1b2838]/90 px-3"
+              style={{ boxShadow: '0 0 0 2px #0a0e14' }}
+            >
+              <svg
+                width="10"
+                height="12"
+                viewBox="0 0 10 12"
+                fill="none"
+                aria-hidden="true"
+                shapeRendering="crispEdges"
+              >
+                <rect x="4" y="1" width="2" height="10" fill="#27e0ff" />
+                <rect x="2" y="3" width="6" height="6" fill="#27e0ff" />
+                <rect x="1" y="5" width="8" height="2" fill="#27e0ff" />
+                <rect x="3" y="3" width="2" height="3" fill="#ffffff" />
+              </svg>
+              <span className="font-code text-xs font-semibold tracking-wider text-[#27e0ff] tabular-nums sm:text-sm">
+                SHARDS {shardsCollected}/{shardsTotal}
+              </span>
+            </div>
           </div>
         </div>
 

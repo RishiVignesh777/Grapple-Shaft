@@ -73,6 +73,13 @@ export interface GrappleAnchor {
   y: number;
 }
 
+export interface EnergyShard {
+  id: string;
+  x: number;
+  y: number;
+  collected: boolean;
+}
+
 export interface GrappleState {
   activeAnchorId: string | null;
   ropeLength: number;
@@ -136,6 +143,7 @@ export interface StepEvents {
   died: boolean;
   landed: boolean;
   checkpointActivated: boolean;
+  shardCollected: boolean;
   grappleAttached: boolean;
   enteredZone: ZoneName | null;
   won: boolean;
@@ -151,6 +159,7 @@ export interface ShellSimulationState {
   lavaPits: LavaPitRect[];
   spikes: SpikeCluster[];
   checkpoints: CheckpointMarker[];
+  shards: EnergyShard[];
   exitFlag: ExitFlagMarker;
   anchors: GrappleAnchor[];
   grapple: GrappleState;

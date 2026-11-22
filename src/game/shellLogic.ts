@@ -3,6 +3,7 @@ import {
   spawnGrappleSparks,
   spawnGrappleTrailSpark,
   spawnLandingSparks,
+  spawnShardSparks,
   stepParticles,
 } from './particles';
 import {
@@ -146,6 +147,7 @@ export function createInitialShellState(): ShellSimulationState {
     lavaPits: level.lavaPits,
     spikes: level.spikes,
     checkpoints: level.checkpoints,
+    shards: level.shards,
     exitFlag: level.exitFlag,
     anchors: level.anchors,
     grapple: {
@@ -182,6 +184,7 @@ export function stepShellState(
     died: false,
     landed: false,
     checkpointActivated: false,
+    shardCollected: false,
     grappleAttached: false,
     enteredZone: null,
     won: false,
@@ -241,6 +244,7 @@ export function stepShellState(
     state.anchors,
     state.grapple,
     state.exitFlag,
+    state.shards,
   );
 
   if (state.grapple.activeAnchorId === null) {
@@ -311,6 +315,15 @@ export function stepShellState(
     state.grappleSparkTimer = 0;
   }
 
+  if (events.shardCollected) {
+    state.particleSeed = spawnShardSparks(
+      state.particles,
+      events.collectedShardX,
+      events.collectedShardY,
+      state.particleSeed,
+    );
+  }
+
   stepParticles(state.particles, dt);
 
   if (events.died) {
@@ -327,6 +340,7 @@ export function stepShellState(
     died: events.died,
     landed: events.landed,
     checkpointActivated: events.checkpointActivated,
+    shardCollected: events.shardCollected,
     grappleAttached: events.grappleAttached,
     enteredZone,
     won: events.won,

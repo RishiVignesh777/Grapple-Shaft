@@ -1,6 +1,7 @@
 import type {
   CameraState,
   CheckpointMarker,
+  EnergyShard,
   ExitFlagMarker,
   GrappleAnchor,
   GrappleState,
@@ -31,6 +32,8 @@ export const PLAYER_SPAWN_Y = 280 - PLAYER_SIZE; // 264
 export const GRAPPLE_PLAYER_RANGE = 152;
 export const GRAPPLE_CURSOR_RANGE = 44;
 export const GRAPPLE_MIN_ROPE_LENGTH = 24;
+export const SHARD_COLLECT_RADIUS = 14;
+export const TOTAL_ENERGY_SHARDS = 6;
 
 export const PHYSICS = {
   gravity: 980,
@@ -49,6 +52,7 @@ export interface FacilityLevelData {
   lavaPits: LavaPitRect[];
   spikes: SpikeCluster[];
   checkpoints: CheckpointMarker[];
+  shards: EnergyShard[];
   exitFlag: ExitFlagMarker;
   anchors: GrappleAnchor[];
   bounds: LevelBounds;
@@ -249,11 +253,27 @@ export function createFacilityLevel(): FacilityLevelData {
     { id: 'shaft-3', x: 1556, y: -34 },
   ];
 
+  const shards: EnergyShard[] = [
+    // 1. Access Corridor far-left exploration behind spawn
+    { id: 'shard-corridor-left', x: 34, y: 218, collected: false },
+    // 2. Access Corridor chasm-brink lip past the third spike cluster
+    { id: 'shard-corridor-brink', x: 926, y: 224, collected: false },
+    // 3. Reactor Chasm daring low swing over the lava pit between anchors
+    { id: 'shard-chasm-low', x: 1114, y: 282, collected: false },
+    // 4. Service Shaft off-path outward swing against right wall
+    { id: 'shard-shaft-mid', x: 1564, y: 58, collected: false },
+    // 5. Service Shaft high ceiling alcove above Checkpoint 3
+    { id: 'shard-shaft-top', x: 1492, y: -176, collected: false },
+    // 6. Core Exit high peak jump arc over the final lava pit
+    { id: 'shard-core-gap', x: 1800, y: -172, collected: false },
+  ];
+
   return {
     platforms,
     lavaPits,
     spikes,
     checkpoints,
+    shards,
     exitFlag,
     anchors,
     bounds: {
@@ -492,11 +512,15 @@ export function stepPlayerPhysics(
   anchors: GrappleAnchor[] = [],
   grapple: GrappleState = { activeAnchorId: null, ropeLength: 0 },
   exitFlag?: ExitFlagMarker,
+  shards: EnergyShard[] = [],
 ): {
   died: boolean;
   landed: boolean;
   landingSpeed: number;
   checkpointActivated: boolean;
+  shardCollected: boolean;
+  collectedShardX: number;
+  collectedShardY: number;
   grappleAttached: boolean;
   won: boolean;
 } {
@@ -506,6 +530,9 @@ export function stepPlayerPhysics(
       landed: false,
       landingSpeed: 0,
       checkpointActivated: false,
+      shardCollected: false,
+      collectedShardX: 0,
+      collectedShardY: 0,
       grappleAttached: false,
       won: false,
     };
@@ -639,9 +666,32 @@ export function stepPlayerPhysics(
       landed: false,
       landingSpeed: 0,
       checkpointActivated,
+      shardCollected: false,
+      collectedShardX: 0,
+      collectedShardY: 0,
       grappleAttached,
       won: false,
     };
+  }
+
+  let shardCollected = false;
+  let collectedShardX = 0;
+  let collectedShardY = 0;
+  if (shards.length > 0) {
+    const px = player.x + player.width / 2;
+    const py = player.y + player.height / 2;
+    for (let i = 0; i < shards.length; i++) {
+      const shard = shards[i];
+      if (!shard.collected) {
+        const dist = Math.hypot(px - shard.x, py - shard.y);
+        if (dist <= SHARD_COLLECT_RADIUS) {
+          shard.collected = true;
+          shardCollected = true;
+          collectedShardX = shard.x;
+          collectedShardY = shard.y;
+        }
+      }
+    }
   }
 
   const won =
@@ -655,6 +705,9 @@ export function stepPlayerPhysics(
     landed,
     landingSpeed,
     checkpointActivated,
+    shardCollected,
+    collectedShardX,
+    collectedShardY,
     grappleAttached,
     won,
   };

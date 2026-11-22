@@ -11,6 +11,7 @@ import {
   PHYSICS,
   PLAYER_SPAWN_X,
   PLAYER_SPAWN_Y,
+  TOTAL_ENERGY_SHARDS,
   applyPendulumConstraint,
   clampCameraToBounds,
   createFacilityLevel,
@@ -466,5 +467,39 @@ test('checkpoint activation sets marker flash timer once and decays cleanly to z
   }
   assert.equal(cp1.activationFlashTimer, 0);
 });
+
+test('facility includes 6 off-path energy shards that collect via proximity without blocking win', () => {
+  const state = createInitialShellState();
+  assert.equal(state.shards.length, TOTAL_ENERGY_SHARDS);
+  assert.equal(state.shards.length, 6);
+  assert.equal(state.shards.every((s) => !s.collected), true);
+
+  // Move player onto first shard (far-left corridor exploration)
+  const shard0 = state.shards[0];
+  state.player.x = shard0.x - state.player.width / 2;
+  state.player.y = shard0.y - state.player.height / 2;
+  state.player.vx = 0;
+  state.player.vy = 0;
+  const collectStep = stepShellState(state, 0.016, 'playing');
+  assert.equal(collectStep.shardCollected, true);
+  assert.equal(shard0.collected, true);
+  assert.equal(state.shards.filter((s) => s.collected).length, 1);
+
+  // Re-stepping on same spot does not double-collect
+  const repeatStep = stepShellState(state, 0.016, 'playing');
+  assert.equal(repeatStep.shardCollected, false);
+  assert.equal(state.shards.filter((s) => s.collected).length, 1);
+
+  // Exit flag still wins with only 1/6 shards collected (shards are optional)
+  state.player.x = state.exitFlag.x;
+  state.player.y = state.exitFlag.baseY - state.player.height;
+  const winStep = stepShellState(state, 0.016, 'playing');
+  assert.equal(winStep.won, true);
+
+  // Fresh restart resets all 6 shards to uncollected
+  const restarted = createInitialShellState();
+  assert.equal(restarted.shards.filter((s) => s.collected).length, 0);
+});
+
 
 

@@ -20,8 +20,13 @@ interface GameCanvasProps {
   runId: number;
   onZoneEnter?: (zone: ZoneName) => void;
   onCheckpointActivate?: () => void;
+  onShardCountChange?: (collected: number, total: number) => void;
   onRunTimeChange?: (seconds: number) => void;
-  onWin?: (finalTimeSeconds: number) => void;
+  onWin?: (
+    finalTimeSeconds: number,
+    shardsCollected: number,
+    shardsTotal: number,
+  ) => void;
 }
 
 export function screenToVirtual(
@@ -43,6 +48,7 @@ export function GameCanvas({
   runId,
   onZoneEnter,
   onCheckpointActivate,
+  onShardCountChange,
   onRunTimeChange,
   onWin,
 }: GameCanvasProps) {
@@ -51,9 +57,11 @@ export function GameCanvas({
   const screenStateRef = useRef<GameScreenState>(screenState);
   const onZoneEnterRef = useRef(onZoneEnter);
   const onCheckpointActivateRef = useRef(onCheckpointActivate);
+  const onShardCountChangeRef = useRef(onShardCountChange);
   const onRunTimeChangeRef = useRef(onRunTimeChange);
   const onWinRef = useRef(onWin);
   const lastEmittedTenthsRef = useRef<number>(-1);
+  const lastEmittedShardsRef = useRef<number>(-1);
   const simStateRef = useRef(createInitialShellState());
   const heldKeysRef = useRef<Set<string>>(new Set());
   const jumpQueuedRef = useRef<boolean>(false);
@@ -71,6 +79,10 @@ export function GameCanvas({
   useEffect(() => {
     onCheckpointActivateRef.current = onCheckpointActivate;
   }, [onCheckpointActivate]);
+
+  useEffect(() => {
+    onShardCountChangeRef.current = onShardCountChange;
+  }, [onShardCountChange]);
 
   useEffect(() => {
     onRunTimeChangeRef.current = onRunTimeChange;
@@ -92,7 +104,9 @@ export function GameCanvas({
     if (runId === 0) return;
     simStateRef.current = createInitialShellState();
     lastEmittedTenthsRef.current = 0;
+    lastEmittedShardsRef.current = 0;
     onRunTimeChangeRef.current?.(0);
+    onShardCountChangeRef.current?.(0, simStateRef.current.shards.length);
     heldKeysRef.current.clear();
     jumpQueuedRef.current = false;
     mouseDownRef.current = false;
@@ -240,6 +254,10 @@ export function GameCanvas({
       canvas.dataset.checkpointsReached = String(
         sim.checkpoints.filter((c) => c.reached).length,
       );
+      canvas.dataset.shardsCollected = String(
+        sim.shards.filter((s) => s.collected).length,
+      );
+      canvas.dataset.shardsTotal = String(sim.shards.length);
       canvas.dataset.particles = String(sim.particles.length);
       canvas.dataset.crtShader = crtRenderer ? 'webgl' : 'fallback2d';
       canvas.dataset.runTime = sim.runTimeSeconds.toFixed(2);
@@ -308,13 +326,17 @@ export function GameCanvas({
       );
 
       const tenths = Math.floor(sim.runTimeSeconds * 10 + 1e-6);
+      const collectedShards = sim.shards.filter((s) => s.collected).length;
+      const totalShards = sim.shards.length;
 
       if (events.won) {
         lastEmittedTenthsRef.current = tenths;
+        lastEmittedShardsRef.current = collectedShards;
         onRunTimeChangeRef.current?.(sim.runTimeSeconds);
+        onShardCountChangeRef.current?.(collectedShards, totalShards);
         soundEngine.playVictoryFanfare();
         if (onWinRef.current) {
-          onWinRef.current(sim.runTimeSeconds);
+          onWinRef.current(sim.runTimeSeconds, collectedShards, totalShards);
         }
       } else {
         if (
@@ -323,6 +345,13 @@ export function GameCanvas({
         ) {
           lastEmittedTenthsRef.current = tenths;
           onRunTimeChangeRef.current?.(sim.runTimeSeconds);
+        }
+        if (
+          screenStateRef.current === 'playing' &&
+          collectedShards !== lastEmittedShardsRef.current
+        ) {
+          lastEmittedShardsRef.current = collectedShards;
+          onShardCountChangeRef.current?.(collectedShards, totalShards);
         }
         if (events.died) {
           soundEngine.playDeathBlip();
@@ -333,6 +362,9 @@ export function GameCanvas({
           if (events.checkpointActivated) {
             soundEngine.playCheckpointChime();
             onCheckpointActivateRef.current?.();
+          }
+          if (events.shardCollected) {
+            soundEngine.playShardCollect();
           }
         }
       }

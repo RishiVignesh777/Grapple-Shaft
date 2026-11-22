@@ -4,6 +4,8 @@ interface WinOverlayProps {
   finalTimeSeconds: number;
   bestTimeSeconds: number | null;
   isNewBest: boolean;
+  shardsCollected: number;
+  shardsTotal: number;
   onRestart: () => void;
 }
 
@@ -11,6 +13,8 @@ export function WinOverlay({
   finalTimeSeconds,
   bestTimeSeconds,
   isNewBest,
+  shardsCollected,
+  shardsTotal,
   onRestart,
 }: WinOverlayProps) {
   return (
@@ -68,6 +72,24 @@ export function WinOverlay({
             {formatSpeedrunTime(bestTimeSeconds ?? finalTimeSeconds)}
           </span>
         </p>
+
+        <div className="mt-2.5">
+          <p
+            data-testid="win-shard-summary"
+            className="font-code inline-block border border-[#2c4560] bg-[#0a0e14]/85 px-4 py-1.5 text-sm tracking-wider text-[#8ca1b8] tabular-nums"
+          >
+            Shards{' '}
+            <span
+              className={
+                shardsCollected >= shardsTotal
+                  ? 'text-[#39ff8f]'
+                  : 'text-[#27e0ff]'
+              }
+            >
+              {shardsCollected}/{shardsTotal}
+            </span>
+          </p>
+        </div>
 
         <button
           type="button"

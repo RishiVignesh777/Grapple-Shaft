@@ -128,6 +128,26 @@ class RetroSoundEngine {
     osc.stop(now + 0.08);
   }
 
+  public playShardCollect(): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const notes = [880, 1318.51];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.045);
+      gain.gain.setValueAtTime(0.06, now + idx * 0.045);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.045 + 0.14);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + idx * 0.045);
+      osc.stop(now + idx * 0.045 + 0.15);
+    });
+  }
+
   public playVictoryFanfare(): void {
     const ctx = this.ensureContext();
     if (!ctx) return;

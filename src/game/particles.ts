@@ -174,6 +174,39 @@ export function spawnGrappleTrailSpark(
   return seedRef.value;
 }
 
+export function spawnShardSparks(
+  particles: SparkParticle[],
+  centerX: number,
+  centerY: number,
+  seed = 1,
+): number {
+  const seedRef = { value: seed | 0 };
+  const colors = [PALETTE.cyanAccent, '#b8f6ff', PALETTE.starBright] as const;
+
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2 + (nextRand(seedRef) - 0.5) * 0.4;
+    const speed = 34 + nextRand(seedRef) * 58;
+    const maxLife = 0.18 + nextRand(seedRef) * 0.16;
+    const color =
+      colors[Math.floor(nextRand(seedRef) * colors.length)] ??
+      PALETTE.cyanAccent;
+
+    pushParticle(particles, {
+      x: centerX,
+      y: centerY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: maxLife,
+      maxLife,
+      size: nextRand(seedRef) > 0.5 ? 2 : 1,
+      color,
+      gravityScale: 0.25,
+    });
+  }
+
+  return seedRef.value;
+}
+
 export function stepParticles(particles: SparkParticle[], dt: number): void {
   if (dt <= 0 || particles.length === 0) return;
 

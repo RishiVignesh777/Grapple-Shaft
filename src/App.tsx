@@ -4,6 +4,7 @@ import { PauseModal } from './components/PauseModal';
 import { PlayingHud } from './components/PlayingHud';
 import { TitleOverlay } from './components/TitleOverlay';
 import { WinOverlay } from './components/WinOverlay';
+import { TOTAL_ENERGY_SHARDS } from './game/physics';
 import { soundEngine } from './game/sound';
 import { loadBestTime, updateBestTimeOnWin } from './game/speedrunTimer';
 import {
@@ -30,6 +31,9 @@ export default function App() {
     loadBestTime(),
   );
   const [isNewBest, setIsNewBest] = useState<boolean>(false);
+  const [shardsCollected, setShardsCollected] = useState<number>(0);
+  const [shardsTotal, setShardsTotal] = useState<number>(TOTAL_ENERGY_SHARDS);
+  const [finalShardsCollected, setFinalShardsCollected] = useState<number>(0);
   const keysPressedRef = useRef<Set<string>>(new Set());
   const zoneEnteredRef = useRef<boolean>(false);
   const zoneTimerRef = useRef<number | null>(null);
@@ -98,32 +102,48 @@ export default function App() {
     };
   }, []);
 
+  const handleShardCountChange = useCallback(
+    (collected: number, total: number) => {
+      setShardsCollected(collected);
+      setShardsTotal(total);
+    },
+    [],
+  );
+
   const handleStart = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
     keysPressedRef.current.clear();
     setRunTimeSeconds(0);
+    setShardsCollected(0);
+    setFinalShardsCollected(0);
     setIsNewBest(false);
     soundEngine.playStartChime();
     setScreenState((prev) => transitionGameState(prev, 'START'));
   }, []);
 
-  const handleWin = useCallback((completionSeconds: number) => {
-    keysPressedRef.current.clear();
-    setZoneLabelVisible(false);
-    setCheckpointBannerVisible(false);
-    if (checkpointTimerRef.current !== null) {
-      window.clearTimeout(checkpointTimerRef.current);
-      checkpointTimerRef.current = null;
-    }
-    const result = updateBestTimeOnWin(completionSeconds);
-    setRunTimeSeconds(result.currentTime);
-    setFinalTimeSeconds(result.currentTime);
-    setBestTimeSeconds(result.bestTime);
-    setIsNewBest(result.isNewBest);
-    setScreenState((prev) => transitionGameState(prev, 'WIN'));
-  }, []);
+  const handleWin = useCallback(
+    (completionSeconds: number, winShardsCollected: number, winShardsTotal: number) => {
+      keysPressedRef.current.clear();
+      setZoneLabelVisible(false);
+      setCheckpointBannerVisible(false);
+      if (checkpointTimerRef.current !== null) {
+        window.clearTimeout(checkpointTimerRef.current);
+        checkpointTimerRef.current = null;
+      }
+      const result = updateBestTimeOnWin(completionSeconds);
+      setRunTimeSeconds(result.currentTime);
+      setFinalTimeSeconds(result.currentTime);
+      setBestTimeSeconds(result.bestTime);
+      setIsNewBest(result.isNewBest);
+      setShardsCollected(winShardsCollected);
+      setShardsTotal(winShardsTotal);
+      setFinalShardsCollected(winShardsCollected);
+      setScreenState((prev) => transitionGameState(prev, 'WIN'));
+    },
+    [],
+  );
 
   const handleRestartRun = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) {
@@ -137,6 +157,8 @@ export default function App() {
       checkpointTimerRef.current = null;
     }
     setRunTimeSeconds(0);
+    setShardsCollected(0);
+    setFinalShardsCollected(0);
     setIsNewBest(false);
     setRunId((id) => id + 1);
     soundEngine.playStartChime();
@@ -161,6 +183,8 @@ export default function App() {
   const handleReturnTitle = useCallback(() => {
     keysPressedRef.current.clear();
     setRunTimeSeconds(0);
+    setShardsCollected(0);
+    setFinalShardsCollected(0);
     setIsNewBest(false);
     setRunId((id) => id + 1);
     setScreenState((prev) => transitionGameState(prev, 'RETURN_TITLE'));
@@ -242,6 +266,7 @@ export default function App() {
         runId={runId}
         onZoneEnter={triggerZoneBanner}
         onCheckpointActivate={triggerCheckpointBanner}
+        onShardCountChange={handleShardCountChange}
         onRunTimeChange={setRunTimeSeconds}
         onWin={handleWin}
       />
@@ -255,6 +280,8 @@ export default function App() {
           zoneLabelVisible={zoneLabelVisible}
           checkpointBannerVisible={checkpointBannerVisible}
           runTimeSeconds={runTimeSeconds}
+          shardsCollected={shardsCollected}
+          shardsTotal={shardsTotal}
           onToggleMute={handleToggleMute}
           onPause={handlePause}
         />
@@ -272,6 +299,8 @@ export default function App() {
           finalTimeSeconds={finalTimeSeconds}
           bestTimeSeconds={bestTimeSeconds}
           isNewBest={isNewBest}
+          shardsCollected={finalShardsCollected}
+          shardsTotal={shardsTotal}
           onRestart={handleRestartRun}
         />
       )}
