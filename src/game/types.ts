@@ -57,6 +57,7 @@ export interface CheckpointMarker {
   width: number;
   height: number;
   reached: boolean;
+  activationFlashTimer?: number;
 }
 
 export interface ExitFlagMarker {

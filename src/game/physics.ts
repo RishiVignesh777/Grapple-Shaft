@@ -22,6 +22,7 @@ export const WALL_THICKNESS = 16;
 export const SPIKE_WIDTH = 7;
 export const SPIKE_HEIGHT = 8;
 export const DEATH_FLASH_DURATION = 0.28;
+export const CHECKPOINT_FLASH_DURATION = 0.65;
 
 export const PLAYER_SIZE = 16;
 export const PLAYER_SPAWN_X = 56;
@@ -211,6 +212,7 @@ export function createFacilityLevel(): FacilityLevelData {
       width: 14,
       height: 26,
       reached: false,
+      activationFlashTimer: 0,
     },
     {
       id: 'cp-chasm',
@@ -219,6 +221,7 @@ export function createFacilityLevel(): FacilityLevelData {
       width: 14,
       height: 26,
       reached: false,
+      activationFlashTimer: 0,
     },
     {
       id: 'cp-shaft-top',
@@ -227,6 +230,7 @@ export function createFacilityLevel(): FacilityLevelData {
       width: 14,
       height: 26,
       reached: false,
+      activationFlashTimer: 0,
     },
   ];
 
@@ -595,8 +599,12 @@ export function stepPlayerPhysics(
   let checkpointActivated = false;
   for (let i = 0; i < checkpoints.length; i++) {
     const cp = checkpoints[i];
+    if (cp.activationFlashTimer && cp.activationFlashTimer > 0) {
+      cp.activationFlashTimer = Math.max(0, cp.activationFlashTimer - dt);
+    }
     if (!cp.reached && rectsOverlap(player, getCheckpointHitbox(cp))) {
       cp.reached = true;
+      cp.activationFlashTimer = CHECKPOINT_FLASH_DURATION;
       respawnPoint.x = cp.x - 1;
       respawnPoint.y = cp.baseY - player.height;
       checkpointActivated = true;

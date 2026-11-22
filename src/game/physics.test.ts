@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  CHECKPOINT_FLASH_DURATION,
   DEATH_VOID_Y,
   GRAPPLE_CURSOR_RANGE,
   GRAPPLE_PLAYER_RANGE,
@@ -440,4 +441,30 @@ test('Core Exit section has walkway, 2 spike clusters, lava gap, exit flag, win 
   assert.equal(restarted.deathCount, 0);
   assert.equal(restarted.checkpoints.every((cp) => !cp.reached), true);
 });
+
+test('checkpoint activation sets marker flash timer once and decays cleanly to zero', () => {
+  const state = createInitialShellState();
+  const cp1 = state.checkpoints[0];
+  assert.equal(cp1.activationFlashTimer ?? 0, 0);
+
+  state.player.x = cp1.x;
+  state.player.y = cp1.baseY - state.player.height;
+  const firstTouch = stepShellState(state, 0.016, 'playing');
+  assert.equal(firstTouch.checkpointActivated, true);
+  assert.equal(cp1.activationFlashTimer, CHECKPOINT_FLASH_DURATION);
+
+  // Decay over several frames without re-triggering on already-reached checkpoint
+  for (let i = 0; i < 10; i++) {
+    const step = stepShellState(state, 0.05, 'playing');
+    assert.equal(step.checkpointActivated, false);
+  }
+  const midFlash = cp1.activationFlashTimer ?? 0;
+  assert.ok(midFlash > 0 && midFlash < CHECKPOINT_FLASH_DURATION);
+
+  for (let i = 0; i < 20; i++) {
+    stepShellState(state, 0.05, 'playing');
+  }
+  assert.equal(cp1.activationFlashTimer, 0);
+});
+
 

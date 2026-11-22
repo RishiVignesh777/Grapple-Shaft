@@ -19,6 +19,7 @@ interface GameCanvasProps {
   screenState: GameScreenState;
   runId: number;
   onZoneEnter?: (zone: ZoneName) => void;
+  onCheckpointActivate?: () => void;
   onRunTimeChange?: (seconds: number) => void;
   onWin?: (finalTimeSeconds: number) => void;
 }
@@ -41,6 +42,7 @@ export function GameCanvas({
   screenState,
   runId,
   onZoneEnter,
+  onCheckpointActivate,
   onRunTimeChange,
   onWin,
 }: GameCanvasProps) {
@@ -48,6 +50,7 @@ export function GameCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const screenStateRef = useRef<GameScreenState>(screenState);
   const onZoneEnterRef = useRef(onZoneEnter);
+  const onCheckpointActivateRef = useRef(onCheckpointActivate);
   const onRunTimeChangeRef = useRef(onRunTimeChange);
   const onWinRef = useRef(onWin);
   const lastEmittedTenthsRef = useRef<number>(-1);
@@ -64,6 +67,10 @@ export function GameCanvas({
   useEffect(() => {
     onZoneEnterRef.current = onZoneEnter;
   }, [onZoneEnter]);
+
+  useEffect(() => {
+    onCheckpointActivateRef.current = onCheckpointActivate;
+  }, [onCheckpointActivate]);
 
   useEffect(() => {
     onRunTimeChangeRef.current = onRunTimeChange;
@@ -325,6 +332,7 @@ export function GameCanvas({
           }
           if (events.checkpointActivated) {
             soundEngine.playCheckpointChime();
+            onCheckpointActivateRef.current?.();
           }
         }
       }

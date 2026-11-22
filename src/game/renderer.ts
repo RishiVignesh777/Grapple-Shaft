@@ -1,6 +1,10 @@
 import { PALETTE } from './palette';
 import { drawParticles } from './particles';
-import { DEATH_FLASH_DURATION, SPIKE_WIDTH } from './physics';
+import {
+  CHECKPOINT_FLASH_DURATION,
+  DEATH_FLASH_DURATION,
+  SPIKE_WIDTH,
+} from './physics';
 import {
   PANEL_GRID_SIZE,
   computeParallaxOffset,
@@ -359,6 +363,35 @@ function drawCheckpointMarker(
     ctx.fillStyle = PALETTE.terminalGreen;
     ctx.fillRect(sx + 9, topY + 1, 5, 2);
     ctx.fillRect(sx + 9, topY + 4, 4, 1);
+  }
+
+  const flashRatio =
+    checkpoint.activationFlashTimer && checkpoint.activationFlashTimer > 0
+      ? Math.min(
+          1,
+          checkpoint.activationFlashTimer / CHECKPOINT_FLASH_DURATION,
+        )
+      : 0;
+
+  if (flashRatio > 0) {
+    const expand = Math.round((1 - flashRatio) * 4);
+    ctx.globalAlpha = 0.34 * flashRatio;
+    ctx.fillStyle = PALETTE.terminalGreen;
+    ctx.fillRect(
+      sx + 1 - expand,
+      topY - 2 - expand,
+      12 + expand * 2,
+      11 + expand * 2,
+    );
+
+    ctx.globalAlpha = 0.78 * flashRatio;
+    ctx.fillStyle = '#b6ffd7';
+    ctx.fillRect(sx + 3, topY, 8, 7);
+    ctx.fillRect(sx + 9, topY + 1, 5, 2);
+
+    ctx.globalAlpha = 0.92 * flashRatio;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(sx + 5, topY + 2, 4, 3);
   }
   ctx.globalAlpha = 1;
 }

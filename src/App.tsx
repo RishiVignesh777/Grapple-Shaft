@@ -22,6 +22,8 @@ export default function App() {
   const [muted, setMuted] = useState<boolean>(false);
   const [zoneLabel, setZoneLabel] = useState<ZoneName>('ACCESS CORRIDOR');
   const [zoneLabelVisible, setZoneLabelVisible] = useState<boolean>(false);
+  const [checkpointBannerVisible, setCheckpointBannerVisible] =
+    useState<boolean>(false);
   const [runTimeSeconds, setRunTimeSeconds] = useState<number>(0);
   const [finalTimeSeconds, setFinalTimeSeconds] = useState<number>(0);
   const [bestTimeSeconds, setBestTimeSeconds] = useState<number | null>(() =>
@@ -31,6 +33,7 @@ export default function App() {
   const keysPressedRef = useRef<Set<string>>(new Set());
   const zoneEnteredRef = useRef<boolean>(false);
   const zoneTimerRef = useRef<number | null>(null);
+  const checkpointTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     document.body.dataset.state = screenState;
@@ -49,6 +52,18 @@ export default function App() {
     }, 2400);
   }, []);
 
+  const triggerCheckpointBanner = useCallback(() => {
+    if (checkpointTimerRef.current !== null) {
+      window.clearTimeout(checkpointTimerRef.current);
+      checkpointTimerRef.current = null;
+    }
+    setCheckpointBannerVisible(true);
+    checkpointTimerRef.current = window.setTimeout(() => {
+      setCheckpointBannerVisible(false);
+      checkpointTimerRef.current = null;
+    }, 1500);
+  }, []);
+
   useEffect(() => {
     if (screenState === 'playing' && !zoneEnteredRef.current) {
       zoneEnteredRef.current = true;
@@ -60,9 +75,14 @@ export default function App() {
     if (screenState === 'title') {
       zoneEnteredRef.current = false;
       setZoneLabelVisible(false);
+      setCheckpointBannerVisible(false);
       if (zoneTimerRef.current !== null) {
         window.clearTimeout(zoneTimerRef.current);
         zoneTimerRef.current = null;
+      }
+      if (checkpointTimerRef.current !== null) {
+        window.clearTimeout(checkpointTimerRef.current);
+        checkpointTimerRef.current = null;
       }
     }
   }, [screenState, triggerZoneBanner]);
@@ -71,6 +91,9 @@ export default function App() {
     return () => {
       if (zoneTimerRef.current !== null) {
         window.clearTimeout(zoneTimerRef.current);
+      }
+      if (checkpointTimerRef.current !== null) {
+        window.clearTimeout(checkpointTimerRef.current);
       }
     };
   }, []);
@@ -89,6 +112,11 @@ export default function App() {
   const handleWin = useCallback((completionSeconds: number) => {
     keysPressedRef.current.clear();
     setZoneLabelVisible(false);
+    setCheckpointBannerVisible(false);
+    if (checkpointTimerRef.current !== null) {
+      window.clearTimeout(checkpointTimerRef.current);
+      checkpointTimerRef.current = null;
+    }
     const result = updateBestTimeOnWin(completionSeconds);
     setRunTimeSeconds(result.currentTime);
     setFinalTimeSeconds(result.currentTime);
@@ -103,6 +131,11 @@ export default function App() {
     }
     keysPressedRef.current.clear();
     zoneEnteredRef.current = false;
+    setCheckpointBannerVisible(false);
+    if (checkpointTimerRef.current !== null) {
+      window.clearTimeout(checkpointTimerRef.current);
+      checkpointTimerRef.current = null;
+    }
     setRunTimeSeconds(0);
     setIsNewBest(false);
     setRunId((id) => id + 1);
@@ -208,6 +241,7 @@ export default function App() {
         screenState={screenState}
         runId={runId}
         onZoneEnter={triggerZoneBanner}
+        onCheckpointActivate={triggerCheckpointBanner}
         onRunTimeChange={setRunTimeSeconds}
         onWin={handleWin}
       />
@@ -219,6 +253,7 @@ export default function App() {
           muted={muted}
           zoneLabel={zoneLabel}
           zoneLabelVisible={zoneLabelVisible}
+          checkpointBannerVisible={checkpointBannerVisible}
           runTimeSeconds={runTimeSeconds}
           onToggleMute={handleToggleMute}
           onPause={handlePause}

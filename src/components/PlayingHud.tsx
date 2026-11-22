@@ -5,6 +5,7 @@ interface PlayingHudProps {
   muted: boolean;
   zoneLabel: ZoneName;
   zoneLabelVisible: boolean;
+  checkpointBannerVisible: boolean;
   runTimeSeconds: number;
   onToggleMute: () => void;
   onPause: () => void;
@@ -14,6 +15,7 @@ export function PlayingHud({
   muted,
   zoneLabel,
   zoneLabelVisible,
+  checkpointBannerVisible,
   runTimeSeconds,
   onToggleMute,
   onPause,
@@ -154,6 +156,24 @@ export function PlayingHud({
         >
           <span className="font-pixel text-xs font-bold tracking-[0.2em] text-[#39ff8f] sm:text-sm">
             {zoneLabel}
+          </span>
+        </div>
+      </div>
+
+      {/* Brief CHECKPOINT confirmation pop-up (fades in/out like zone labels) */}
+      <div
+        data-testid="checkpoint-label"
+        aria-live="polite"
+        className={`pointer-events-none fixed left-1/2 -translate-x-1/2 text-center transition-opacity duration-500 ${
+          zoneLabelVisible ? 'top-40 sm:top-32' : 'top-28 sm:top-20'
+        } ${checkpointBannerVisible ? 'opacity-100' : 'opacity-0'}`}
+      >
+        <div
+          className="border-b-2 border-[#39ff8f] bg-[#0a0e14]/75 px-4 py-1.5"
+          style={{ boxShadow: '0 2px 12px rgba(10, 14, 20, 0.7)' }}
+        >
+          <span className="font-pixel text-xs font-bold tracking-[0.2em] text-[#39ff8f] sm:text-sm">
+            CHECKPOINT
           </span>
         </div>
       </div>
