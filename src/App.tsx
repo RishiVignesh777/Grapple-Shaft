@@ -5,6 +5,7 @@ import { PlayingHud } from './components/PlayingHud';
 import { TitleOverlay } from './components/TitleOverlay';
 import { WinOverlay } from './components/WinOverlay';
 import { soundEngine } from './game/sound';
+import { loadBestTime, updateBestTimeOnWin } from './game/speedrunTimer';
 import {
   resolveInitialScreenState,
   transitionGameState,
@@ -21,6 +22,12 @@ export default function App() {
   const [muted, setMuted] = useState<boolean>(false);
   const [zoneLabel, setZoneLabel] = useState<ZoneName>('ACCESS CORRIDOR');
   const [zoneLabelVisible, setZoneLabelVisible] = useState<boolean>(false);
+  const [runTimeSeconds, setRunTimeSeconds] = useState<number>(0);
+  const [finalTimeSeconds, setFinalTimeSeconds] = useState<number>(0);
+  const [bestTimeSeconds, setBestTimeSeconds] = useState<number | null>(() =>
+    loadBestTime(),
+  );
+  const [isNewBest, setIsNewBest] = useState<boolean>(false);
   const keysPressedRef = useRef<Set<string>>(new Set());
   const zoneEnteredRef = useRef<boolean>(false);
   const zoneTimerRef = useRef<number | null>(null);
@@ -73,13 +80,20 @@ export default function App() {
       document.activeElement.blur();
     }
     keysPressedRef.current.clear();
+    setRunTimeSeconds(0);
+    setIsNewBest(false);
     soundEngine.playStartChime();
     setScreenState((prev) => transitionGameState(prev, 'START'));
   }, []);
 
-  const handleWin = useCallback(() => {
+  const handleWin = useCallback((completionSeconds: number) => {
     keysPressedRef.current.clear();
     setZoneLabelVisible(false);
+    const result = updateBestTimeOnWin(completionSeconds);
+    setRunTimeSeconds(result.currentTime);
+    setFinalTimeSeconds(result.currentTime);
+    setBestTimeSeconds(result.bestTime);
+    setIsNewBest(result.isNewBest);
     setScreenState((prev) => transitionGameState(prev, 'WIN'));
   }, []);
 
@@ -89,6 +103,8 @@ export default function App() {
     }
     keysPressedRef.current.clear();
     zoneEnteredRef.current = false;
+    setRunTimeSeconds(0);
+    setIsNewBest(false);
     setRunId((id) => id + 1);
     soundEngine.playStartChime();
     setScreenState((prev) => transitionGameState(prev, 'RESTART_RUN'));
@@ -111,6 +127,8 @@ export default function App() {
 
   const handleReturnTitle = useCallback(() => {
     keysPressedRef.current.clear();
+    setRunTimeSeconds(0);
+    setIsNewBest(false);
     setRunId((id) => id + 1);
     setScreenState((prev) => transitionGameState(prev, 'RETURN_TITLE'));
   }, []);
@@ -190,6 +208,7 @@ export default function App() {
         screenState={screenState}
         runId={runId}
         onZoneEnter={triggerZoneBanner}
+        onRunTimeChange={setRunTimeSeconds}
         onWin={handleWin}
       />
 
@@ -200,6 +219,7 @@ export default function App() {
           muted={muted}
           zoneLabel={zoneLabel}
           zoneLabelVisible={zoneLabelVisible}
+          runTimeSeconds={runTimeSeconds}
           onToggleMute={handleToggleMute}
           onPause={handlePause}
         />
@@ -212,7 +232,14 @@ export default function App() {
         />
       )}
 
-      {screenState === 'won' && <WinOverlay onRestart={handleRestartRun} />}
+      {screenState === 'won' && (
+        <WinOverlay
+          finalTimeSeconds={finalTimeSeconds}
+          bestTimeSeconds={bestTimeSeconds}
+          isNewBest={isNewBest}
+          onRestart={handleRestartRun}
+        />
+      )}
     </div>
   );
 }

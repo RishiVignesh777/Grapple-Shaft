@@ -135,6 +135,7 @@ export function createInitialShellState(): ShellSimulationState {
 
   return {
     elapsedTime: 0,
+    runTimeSeconds: 0,
     panelScrollY: 0,
     camera: {
       x: 0,
@@ -220,6 +221,7 @@ export function stepShellState(
     return noEvents;
   }
 
+  state.runTimeSeconds += dt;
   state.panelScrollY = (state.panelScrollY + 6 * dt) % 4096;
 
   if (state.deathFlashTimer > 0) {

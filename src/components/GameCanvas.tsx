@@ -19,7 +19,8 @@ interface GameCanvasProps {
   screenState: GameScreenState;
   runId: number;
   onZoneEnter?: (zone: ZoneName) => void;
-  onWin?: () => void;
+  onRunTimeChange?: (seconds: number) => void;
+  onWin?: (finalTimeSeconds: number) => void;
 }
 
 export function screenToVirtual(
@@ -40,13 +41,16 @@ export function GameCanvas({
   screenState,
   runId,
   onZoneEnter,
+  onRunTimeChange,
   onWin,
 }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const screenStateRef = useRef<GameScreenState>(screenState);
   const onZoneEnterRef = useRef(onZoneEnter);
+  const onRunTimeChangeRef = useRef(onRunTimeChange);
   const onWinRef = useRef(onWin);
+  const lastEmittedTenthsRef = useRef<number>(-1);
   const simStateRef = useRef(createInitialShellState());
   const heldKeysRef = useRef<Set<string>>(new Set());
   const jumpQueuedRef = useRef<boolean>(false);
@@ -60,6 +64,10 @@ export function GameCanvas({
   useEffect(() => {
     onZoneEnterRef.current = onZoneEnter;
   }, [onZoneEnter]);
+
+  useEffect(() => {
+    onRunTimeChangeRef.current = onRunTimeChange;
+  }, [onRunTimeChange]);
 
   useEffect(() => {
     onWinRef.current = onWin;
@@ -76,6 +84,8 @@ export function GameCanvas({
   useEffect(() => {
     if (runId === 0) return;
     simStateRef.current = createInitialShellState();
+    lastEmittedTenthsRef.current = 0;
+    onRunTimeChangeRef.current?.(0);
     heldKeysRef.current.clear();
     jumpQueuedRef.current = false;
     mouseDownRef.current = false;
@@ -225,6 +235,7 @@ export function GameCanvas({
       );
       canvas.dataset.particles = String(sim.particles.length);
       canvas.dataset.crtShader = crtRenderer ? 'webgl' : 'fallback2d';
+      canvas.dataset.runTime = sim.runTimeSeconds.toFixed(2);
     };
 
     const drawPresentFrame = (sim: ReturnType<typeof createInitialShellState>) => {
@@ -289,19 +300,32 @@ export function GameCanvas({
         input,
       );
 
+      const tenths = Math.floor(sim.runTimeSeconds * 10 + 1e-6);
+
       if (events.won) {
+        lastEmittedTenthsRef.current = tenths;
+        onRunTimeChangeRef.current?.(sim.runTimeSeconds);
         soundEngine.playVictoryFanfare();
         if (onWinRef.current) {
-          onWinRef.current();
+          onWinRef.current(sim.runTimeSeconds);
         }
-      } else if (events.died) {
-        soundEngine.playDeathBlip();
       } else {
-        if (events.grappleAttached) {
-          soundEngine.playGrappleAttach();
+        if (
+          screenStateRef.current === 'playing' &&
+          tenths !== lastEmittedTenthsRef.current
+        ) {
+          lastEmittedTenthsRef.current = tenths;
+          onRunTimeChangeRef.current?.(sim.runTimeSeconds);
         }
-        if (events.checkpointActivated) {
-          soundEngine.playCheckpointChime();
+        if (events.died) {
+          soundEngine.playDeathBlip();
+        } else {
+          if (events.grappleAttached) {
+            soundEngine.playGrappleAttach();
+          }
+          if (events.checkpointActivated) {
+            soundEngine.playCheckpointChime();
+          }
         }
       }
 

@@ -104,3 +104,27 @@ test('state machine resolves ?autostart=1 and handles transitions including WIN 
   assert.equal(transitionGameState('won', 'RESTART_RUN'), 'playing');
   assert.equal(transitionGameState('title', 'WIN'), 'title');
 });
+
+test('runTimeSeconds advances only while playing and resets on fresh state', () => {
+  const state = createInitialShellState();
+  const viewport = computeVirtualViewport(1440, 900);
+  assert.equal(state.runTimeSeconds, 0);
+
+  stepShellState(state, 0.05, 'title', viewport);
+  stepShellState(state, 0.05, 'title', viewport);
+  assert.equal(state.runTimeSeconds, 0);
+
+  stepShellState(state, 0.05, 'playing', viewport);
+  stepShellState(state, 0.05, 'playing', viewport);
+  assert.ok(Math.abs(state.runTimeSeconds - 0.1) < 1e-6);
+
+  stepShellState(state, 0.05, 'paused', viewport);
+  assert.ok(Math.abs(state.runTimeSeconds - 0.1) < 1e-6);
+
+  stepShellState(state, 0.05, 'won', viewport);
+  assert.ok(Math.abs(state.runTimeSeconds - 0.1) < 1e-6);
+
+  const reset = createInitialShellState();
+  assert.equal(reset.runTimeSeconds, 0);
+});
+

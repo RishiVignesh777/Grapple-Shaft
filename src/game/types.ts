@@ -142,6 +142,7 @@ export interface StepEvents {
 
 export interface ShellSimulationState {
   elapsedTime: number;
+  runTimeSeconds: number;
   panelScrollY: number;
   camera: CameraState;
   player: PlayerBody;

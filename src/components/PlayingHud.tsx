@@ -1,9 +1,11 @@
+import { formatSpeedrunTime } from '../game/speedrunTimer';
 import type { ZoneName } from '../game/types';
 
 interface PlayingHudProps {
   muted: boolean;
   zoneLabel: ZoneName;
   zoneLabelVisible: boolean;
+  runTimeSeconds: number;
   onToggleMute: () => void;
   onPause: () => void;
 }
@@ -12,6 +14,7 @@ export function PlayingHud({
   muted,
   zoneLabel,
   zoneLabelVisible,
+  runTimeSeconds,
   onToggleMute,
   onPause,
 }: PlayingHudProps) {
@@ -19,26 +22,39 @@ export function PlayingHud({
     <div className="pointer-events-none fixed inset-0 z-10 flex flex-col justify-between p-4 sm:p-6">
       {/* Top perimeter cluster */}
       <div className="flex items-start justify-between gap-4">
-        <div
-          className="border-2 border-[#2c4560] bg-[#1b2838]/90 px-3.5 py-2"
-          style={{ boxShadow: '0 0 0 2px #0a0e14' }}
-        >
-          <div className="flex items-center gap-2.5">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 14 14"
-              fill="none"
-              aria-hidden="true"
-              shapeRendering="crispEdges"
-            >
-              <rect x="0" y="0" width="14" height="14" fill="#0a0e14" />
-              <rect x="1" y="1" width="12" height="12" fill="#2c4560" />
-              <rect x="3" y="3" width="8" height="8" fill="#1b2838" />
-              <rect x="4" y="5" width="6" height="3" fill="#39ff8f" />
-            </svg>
-            <span className="font-pixel text-xs font-bold tracking-wider text-[#27e0ff] sm:text-sm">
-              GRAPPLE SHAFT
+        <div className="flex flex-col items-start gap-2">
+          <div
+            className="border-2 border-[#2c4560] bg-[#1b2838]/90 px-3.5 py-2"
+            style={{ boxShadow: '0 0 0 2px #0a0e14' }}
+          >
+            <div className="flex items-center gap-2.5">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                aria-hidden="true"
+                shapeRendering="crispEdges"
+              >
+                <rect x="0" y="0" width="14" height="14" fill="#0a0e14" />
+                <rect x="1" y="1" width="12" height="12" fill="#2c4560" />
+                <rect x="3" y="3" width="8" height="8" fill="#1b2838" />
+                <rect x="4" y="5" width="6" height="3" fill="#39ff8f" />
+              </svg>
+              <span className="font-pixel text-xs font-bold tracking-wider text-[#27e0ff] sm:text-sm">
+                GRAPPLE SHAFT
+              </span>
+            </div>
+          </div>
+
+          <div
+            data-testid="speedrun-timer"
+            aria-label="Run timer"
+            className="border-2 border-[#2c4560] bg-[#1b2838]/90 px-3 py-1"
+            style={{ boxShadow: '0 0 0 2px #0a0e14' }}
+          >
+            <span className="font-code text-xs font-semibold tracking-wider text-[#39ff8f] tabular-nums sm:text-sm">
+              {formatSpeedrunTime(runTimeSeconds)}
             </span>
           </div>
         </div>
@@ -128,7 +144,7 @@ export function PlayingHud({
       <div
         data-testid="zone-label"
         aria-live="polite"
-        className={`pointer-events-none fixed left-1/2 top-20 -translate-x-1/2 text-center transition-opacity duration-500 ${
+        className={`pointer-events-none fixed left-1/2 top-28 -translate-x-1/2 text-center transition-opacity duration-500 sm:top-20 ${
           zoneLabelVisible ? 'opacity-100' : 'opacity-0'
         }`}
       >

@@ -1,8 +1,18 @@
+import { formatSpeedrunTime } from '../game/speedrunTimer';
+
 interface WinOverlayProps {
+  finalTimeSeconds: number;
+  bestTimeSeconds: number | null;
+  isNewBest: boolean;
   onRestart: () => void;
 }
 
-export function WinOverlay({ onRestart }: WinOverlayProps) {
+export function WinOverlay({
+  finalTimeSeconds,
+  bestTimeSeconds,
+  isNewBest,
+  onRestart,
+}: WinOverlayProps) {
   return (
     <div
       role="dialog"
@@ -42,6 +52,21 @@ export function WinOverlay({ onRestart }: WinOverlayProps) {
 
         <p className="font-ui mt-3 text-sm text-[#c6d7eb]">
           All facility sectors traversed. Core exit reached.
+        </p>
+
+        <p
+          data-testid="win-time-summary"
+          className="font-code mt-4 inline-block border border-[#2c4560] bg-[#0a0e14]/85 px-4 py-2 text-sm tracking-wider text-[#8ca1b8] tabular-nums"
+        >
+          Time{' '}
+          <span className="text-[#e6f1ff]">
+            {formatSpeedrunTime(finalTimeSeconds)}
+          </span>
+          <span className="mx-2 text-[#5c7896]">·</span>
+          Best{' '}
+          <span className={isNewBest ? 'text-[#39ff8f]' : 'text-[#27e0ff]'}>
+            {formatSpeedrunTime(bestTimeSeconds ?? finalTimeSeconds)}
+          </span>
         </p>
 
         <button
