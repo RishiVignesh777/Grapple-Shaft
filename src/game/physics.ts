@@ -399,6 +399,16 @@ export function getExitFlagHitbox(flag: ExitFlagMarker): SimpleRect {
   };
 }
 
+export function isAnchorInPlayerRange(
+  player: PlayerBody,
+  anchor: GrappleAnchor,
+  playerRange = GRAPPLE_PLAYER_RANGE,
+): boolean {
+  const px = player.x + player.width / 2;
+  const py = player.y + player.height / 2;
+  return Math.hypot(px - anchor.x, py - anchor.y) <= playerRange;
+}
+
 export function findAttachableAnchor(
   player: PlayerBody,
   mouseWorldX: number,
@@ -407,9 +417,6 @@ export function findAttachableAnchor(
   playerRange = GRAPPLE_PLAYER_RANGE,
   cursorRange = GRAPPLE_CURSOR_RANGE,
 ): GrappleAnchor | null {
-  const px = player.x + player.width / 2;
-  const py = player.y + player.height / 2;
-
   let best: GrappleAnchor | null = null;
   let bestCursorDist = Number.POSITIVE_INFINITY;
 
@@ -418,8 +425,7 @@ export function findAttachableAnchor(
     const cursorDist = Math.hypot(mouseWorldX - anchor.x, mouseWorldY - anchor.y);
     if (cursorDist > cursorRange) continue;
 
-    const playerDist = Math.hypot(px - anchor.x, py - anchor.y);
-    if (playerDist > playerRange) continue;
+    if (!isAnchorInPlayerRange(player, anchor, playerRange)) continue;
 
     if (cursorDist < bestCursorDist) {
       bestCursorDist = cursorDist;

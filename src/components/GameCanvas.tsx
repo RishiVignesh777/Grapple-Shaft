@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { CrtShaderRenderer, computeCrtUniforms } from '../game/crtShader';
-import { DEATH_FLASH_DURATION } from '../game/physics';
+import {
+  DEATH_FLASH_DURATION,
+  isAnchorInPlayerRange,
+} from '../game/physics';
 import { renderShellFrame } from '../game/renderer';
 import {
   computeVirtualViewport,
@@ -262,6 +265,11 @@ export function GameCanvas({
       canvas.dataset.grappleActive = String(
         sim.grapple.activeAnchorId ?? 'none',
       );
+      canvas.dataset.inRangeAnchors =
+        sim.anchors
+          .filter((a) => isAnchorInPlayerRange(sim.player, a))
+          .map((a) => a.id)
+          .join(',') || 'none';
       canvas.dataset.checkpointsReached = String(
         sim.checkpoints.filter((c) => c.reached).length,
       );

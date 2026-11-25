@@ -18,6 +18,7 @@ import {
   createInitialPlayer,
   findAttachableAnchor,
   getSpikeHitbox,
+  isAnchorInPlayerRange,
   resolveAabbCollision,
   resolveZoneName,
   stepPlayerPhysics,
@@ -500,6 +501,32 @@ test('facility includes 6 off-path energy shards that collect via proximity with
   const restarted = createInitialShellState();
   assert.equal(restarted.shards.filter((s) => s.collected).length, 0);
 });
+
+test('isAnchorInPlayerRange matches grapple attach range without altering attach behavior', () => {
+  const anchor = { id: 'a1', x: 200, y: 100 };
+  const inRangePlayer = {
+    ...createInitialPlayer(),
+    x: 200 - 8 + 150,
+    y: 100 - 8,
+  };
+  assert.equal(isAnchorInPlayerRange(inRangePlayer, anchor), true);
+  assert.equal(
+    findAttachableAnchor(inRangePlayer, anchor.x, anchor.y, [anchor])?.id,
+    'a1',
+  );
+
+  const outOfRangePlayer = {
+    ...createInitialPlayer(),
+    x: 200 - 8 + GRAPPLE_PLAYER_RANGE + 1,
+    y: 100 - 8,
+  };
+  assert.equal(isAnchorInPlayerRange(outOfRangePlayer, anchor), false);
+  assert.equal(
+    findAttachableAnchor(outOfRangePlayer, anchor.x, anchor.y, [anchor]),
+    null,
+  );
+});
+
 
 
 

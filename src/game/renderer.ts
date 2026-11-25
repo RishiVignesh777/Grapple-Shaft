@@ -4,6 +4,7 @@ import {
   CHECKPOINT_FLASH_DURATION,
   DEATH_FLASH_DURATION,
   SPIKE_WIDTH,
+  isAnchorInPlayerRange,
 } from './physics';
 import {
   PANEL_GRID_SIZE,
@@ -502,18 +503,32 @@ function drawGrappleAnchor(
   anchor: GrappleAnchor,
   camX: number,
   camY: number,
+  screenState: GameScreenState,
 ): void {
   const cx = Math.round(anchor.x - camX);
   const cy = Math.round(anchor.y - camY);
   const isActive = state.grapple.activeAnchorId === anchor.id;
   const isHovered = state.hoveredAnchorId === anchor.id;
+  const isInRange =
+    screenState === 'playing' && isAnchorInPlayerRange(state.player, anchor);
 
   const pulse = 0.72 + 0.28 * Math.sin(state.elapsedTime * 5.2 + anchor.x * 0.05);
 
-  // Subtle green outer glow ring
-  ctx.globalAlpha = isActive ? 0.42 : 0.22 * pulse;
-  ctx.fillStyle = PALETTE.terminalGreen;
-  ctx.fillRect(cx - 6, cy - 6, 12, 12);
+  if (isInRange || isActive) {
+    // Larger, brighter green energy halo when player is within grapple range
+    ctx.globalAlpha = (isActive ? 0.28 : 0.22) * pulse;
+    ctx.fillStyle = PALETTE.terminalGreen;
+    ctx.fillRect(cx - 9, cy - 9, 18, 18);
+
+    ctx.globalAlpha = isActive ? 0.56 : 0.44 * pulse;
+    ctx.fillStyle = PALETTE.terminalGreen;
+    ctx.fillRect(cx - 7, cy - 7, 14, 14);
+  } else {
+    // Dimmer, smaller glow when out of player range
+    ctx.globalAlpha = 0.22 * pulse;
+    ctx.fillStyle = PALETTE.terminalGreen;
+    ctx.fillRect(cx - 6, cy - 6, 12, 12);
+  }
   ctx.globalAlpha = 1;
 
   // Steel-gray square housing
@@ -524,11 +539,20 @@ function drawGrappleAnchor(
   ctx.fillStyle = PALETTE.panelDark;
   ctx.fillRect(cx - 3, cy - 3, 6, 6);
 
-  // Glowing green anchor core
-  ctx.globalAlpha = isActive ? 1 : pulse;
+  if (isInRange || isActive) {
+    ctx.globalAlpha = isActive ? 0.9 : 0.7 * pulse;
+    ctx.fillStyle = PALETTE.terminalGreen;
+    ctx.fillRect(cx - 4, cy - 4, 1, 1);
+    ctx.fillRect(cx + 3, cy - 4, 1, 1);
+    ctx.fillRect(cx - 4, cy + 3, 1, 1);
+    ctx.fillRect(cx + 3, cy + 3, 1, 1);
+  }
+
+  // Glowing green anchor core (brighter + crisp white center when in range)
+  ctx.globalAlpha = isInRange || isActive ? 1 : pulse;
   ctx.fillStyle = PALETTE.terminalGreen;
   ctx.fillRect(cx - 2, cy - 2, 4, 4);
-  ctx.fillStyle = '#b6ffd7';
+  ctx.fillStyle = isInRange || isActive ? '#ffffff' : '#b6ffd7';
   ctx.fillRect(cx - 1, cy - 1, 2, 2);
   ctx.globalAlpha = 1;
 
@@ -591,6 +615,7 @@ function drawCorridorWorld(
   state: ShellSimulationState,
   camX: number,
   camY: number,
+  screenState: GameScreenState,
 ): void {
   // Lava pits
   for (let i = 0; i < state.lavaPits.length; i++) {
@@ -633,7 +658,7 @@ function drawCorridorWorld(
 
   // Glowing green grapple anchors
   for (let i = 0; i < state.anchors.length; i++) {
-    drawGrappleAnchor(ctx, state, state.anchors[i], camX, camY);
+    drawGrappleAnchor(ctx, state, state.anchors[i], camX, camY, screenState);
   }
 
   // Active grapple rope line from player center to attached anchor
@@ -713,7 +738,7 @@ export function renderShellFrame(
   drawMidgroundStruts(ctx, state, vw, vh);
 
   // 5. Facility sections, platforms, lava pits, spikes, checkpoints, grapple anchors & rope
-  drawCorridorWorld(ctx, state, camX, camY);
+  drawCorridorWorld(ctx, state, camX, camY, screenState);
 
   // 6. Player square
   drawPlayerSquare(ctx, state, camX, camY);
