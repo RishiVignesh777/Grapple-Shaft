@@ -34,6 +34,8 @@ export default function App() {
   const [shardsCollected, setShardsCollected] = useState<number>(0);
   const [shardsTotal, setShardsTotal] = useState<number>(TOTAL_ENERGY_SHARDS);
   const [finalShardsCollected, setFinalShardsCollected] = useState<number>(0);
+  const [deathCount, setDeathCount] = useState<number>(0);
+  const [finalDeathCount, setFinalDeathCount] = useState<number>(0);
   const keysPressedRef = useRef<Set<string>>(new Set());
   const zoneEnteredRef = useRef<boolean>(false);
   const zoneTimerRef = useRef<number | null>(null);
@@ -118,13 +120,20 @@ export default function App() {
     setRunTimeSeconds(0);
     setShardsCollected(0);
     setFinalShardsCollected(0);
+    setDeathCount(0);
+    setFinalDeathCount(0);
     setIsNewBest(false);
     soundEngine.playStartChime();
     setScreenState((prev) => transitionGameState(prev, 'START'));
   }, []);
 
   const handleWin = useCallback(
-    (completionSeconds: number, winShardsCollected: number, winShardsTotal: number) => {
+    (
+      completionSeconds: number,
+      winShardsCollected: number,
+      winShardsTotal: number,
+      winDeathCount: number,
+    ) => {
       keysPressedRef.current.clear();
       setZoneLabelVisible(false);
       setCheckpointBannerVisible(false);
@@ -140,6 +149,8 @@ export default function App() {
       setShardsCollected(winShardsCollected);
       setShardsTotal(winShardsTotal);
       setFinalShardsCollected(winShardsCollected);
+      setDeathCount(winDeathCount);
+      setFinalDeathCount(winDeathCount);
       setScreenState((prev) => transitionGameState(prev, 'WIN'));
     },
     [],
@@ -159,6 +170,8 @@ export default function App() {
     setRunTimeSeconds(0);
     setShardsCollected(0);
     setFinalShardsCollected(0);
+    setDeathCount(0);
+    setFinalDeathCount(0);
     setIsNewBest(false);
     setRunId((id) => id + 1);
     soundEngine.playStartChime();
@@ -185,6 +198,8 @@ export default function App() {
     setRunTimeSeconds(0);
     setShardsCollected(0);
     setFinalShardsCollected(0);
+    setDeathCount(0);
+    setFinalDeathCount(0);
     setIsNewBest(false);
     setRunId((id) => id + 1);
     setScreenState((prev) => transitionGameState(prev, 'RETURN_TITLE'));
@@ -267,6 +282,7 @@ export default function App() {
         onZoneEnter={triggerZoneBanner}
         onCheckpointActivate={triggerCheckpointBanner}
         onShardCountChange={handleShardCountChange}
+        onDeathCountChange={setDeathCount}
         onRunTimeChange={setRunTimeSeconds}
         onWin={handleWin}
       />
@@ -282,6 +298,7 @@ export default function App() {
           runTimeSeconds={runTimeSeconds}
           shardsCollected={shardsCollected}
           shardsTotal={shardsTotal}
+          deathCount={deathCount}
           onToggleMute={handleToggleMute}
           onPause={handlePause}
         />
@@ -301,6 +318,7 @@ export default function App() {
           isNewBest={isNewBest}
           shardsCollected={finalShardsCollected}
           shardsTotal={shardsTotal}
+          deathCount={finalDeathCount}
           onRestart={handleRestartRun}
         />
       )}

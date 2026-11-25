@@ -128,3 +128,28 @@ test('runTimeSeconds advances only while playing and resets on fresh state', () 
   assert.equal(reset.runTimeSeconds, 0);
 });
 
+test('deathCount tracks hazard and void deaths during a run and resets to zero on restart', () => {
+  const state = createInitialShellState();
+  const viewport = computeVirtualViewport(1440, 900);
+  assert.equal(state.deathCount, 0);
+
+  // Death 1: fall into Access Corridor lava pit 1
+  state.player.x = state.lavaPits[0].x + 8;
+  state.player.y = state.lavaPits[0].y - 4;
+  const lavaDeath = stepShellState(state, 0.016, 'playing', viewport);
+  assert.equal(lavaDeath.died, true);
+  assert.equal(state.deathCount, 1);
+
+  // Death 2: fall below safety-net void
+  state.player.x = 660;
+  state.player.y = state.bounds.deathVoidY + 5;
+  const voidDeath = stepShellState(state, 0.016, 'playing', viewport);
+  assert.equal(voidDeath.died, true);
+  assert.equal(state.deathCount, 2);
+
+  // Restarting from the beginning resets deathCount to 0
+  const restarted = createInitialShellState();
+  assert.equal(restarted.deathCount, 0);
+});
+
+

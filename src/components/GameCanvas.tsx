@@ -21,11 +21,13 @@ interface GameCanvasProps {
   onZoneEnter?: (zone: ZoneName) => void;
   onCheckpointActivate?: () => void;
   onShardCountChange?: (collected: number, total: number) => void;
+  onDeathCountChange?: (deaths: number) => void;
   onRunTimeChange?: (seconds: number) => void;
   onWin?: (
     finalTimeSeconds: number,
     shardsCollected: number,
     shardsTotal: number,
+    deathCount: number,
   ) => void;
 }
 
@@ -49,6 +51,7 @@ export function GameCanvas({
   onZoneEnter,
   onCheckpointActivate,
   onShardCountChange,
+  onDeathCountChange,
   onRunTimeChange,
   onWin,
 }: GameCanvasProps) {
@@ -58,10 +61,12 @@ export function GameCanvas({
   const onZoneEnterRef = useRef(onZoneEnter);
   const onCheckpointActivateRef = useRef(onCheckpointActivate);
   const onShardCountChangeRef = useRef(onShardCountChange);
+  const onDeathCountChangeRef = useRef(onDeathCountChange);
   const onRunTimeChangeRef = useRef(onRunTimeChange);
   const onWinRef = useRef(onWin);
   const lastEmittedTenthsRef = useRef<number>(-1);
   const lastEmittedShardsRef = useRef<number>(-1);
+  const lastEmittedDeathsRef = useRef<number>(-1);
   const simStateRef = useRef(createInitialShellState());
   const heldKeysRef = useRef<Set<string>>(new Set());
   const jumpQueuedRef = useRef<boolean>(false);
@@ -85,6 +90,10 @@ export function GameCanvas({
   }, [onShardCountChange]);
 
   useEffect(() => {
+    onDeathCountChangeRef.current = onDeathCountChange;
+  }, [onDeathCountChange]);
+
+  useEffect(() => {
     onRunTimeChangeRef.current = onRunTimeChange;
   }, [onRunTimeChange]);
 
@@ -105,8 +114,10 @@ export function GameCanvas({
     simStateRef.current = createInitialShellState();
     lastEmittedTenthsRef.current = 0;
     lastEmittedShardsRef.current = 0;
+    lastEmittedDeathsRef.current = 0;
     onRunTimeChangeRef.current?.(0);
     onShardCountChangeRef.current?.(0, simStateRef.current.shards.length);
+    onDeathCountChangeRef.current?.(0);
     heldKeysRef.current.clear();
     jumpQueuedRef.current = false;
     mouseDownRef.current = false;
@@ -332,11 +343,18 @@ export function GameCanvas({
       if (events.won) {
         lastEmittedTenthsRef.current = tenths;
         lastEmittedShardsRef.current = collectedShards;
+        lastEmittedDeathsRef.current = sim.deathCount;
         onRunTimeChangeRef.current?.(sim.runTimeSeconds);
         onShardCountChangeRef.current?.(collectedShards, totalShards);
+        onDeathCountChangeRef.current?.(sim.deathCount);
         soundEngine.playVictoryFanfare();
         if (onWinRef.current) {
-          onWinRef.current(sim.runTimeSeconds, collectedShards, totalShards);
+          onWinRef.current(
+            sim.runTimeSeconds,
+            collectedShards,
+            totalShards,
+            sim.deathCount,
+          );
         }
       } else {
         if (
@@ -352,6 +370,13 @@ export function GameCanvas({
         ) {
           lastEmittedShardsRef.current = collectedShards;
           onShardCountChangeRef.current?.(collectedShards, totalShards);
+        }
+        if (
+          screenStateRef.current === 'playing' &&
+          sim.deathCount !== lastEmittedDeathsRef.current
+        ) {
+          lastEmittedDeathsRef.current = sim.deathCount;
+          onDeathCountChangeRef.current?.(sim.deathCount);
         }
         if (events.died) {
           soundEngine.playDeathBlip();

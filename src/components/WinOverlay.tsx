@@ -6,6 +6,7 @@ interface WinOverlayProps {
   isNewBest: boolean;
   shardsCollected: number;
   shardsTotal: number;
+  deathCount: number;
   onRestart: () => void;
 }
 
@@ -15,6 +16,7 @@ export function WinOverlay({
   isNewBest,
   shardsCollected,
   shardsTotal,
+  deathCount,
   onRestart,
 }: WinOverlayProps) {
   return (
@@ -73,10 +75,10 @@ export function WinOverlay({
           </span>
         </p>
 
-        <div className="mt-2.5">
+        <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
           <p
             data-testid="win-shard-summary"
-            className="font-code inline-block border border-[#2c4560] bg-[#0a0e14]/85 px-4 py-1.5 text-sm tracking-wider text-[#8ca1b8] tabular-nums"
+            className="font-code inline-block border border-[#2c4560] bg-[#0a0e14]/85 px-3.5 py-1.5 text-sm tracking-wider text-[#8ca1b8] tabular-nums"
           >
             Shards{' '}
             <span
@@ -87,6 +89,20 @@ export function WinOverlay({
               }
             >
               {shardsCollected}/{shardsTotal}
+            </span>
+          </p>
+
+          <p
+            data-testid="win-death-summary"
+            className="font-code inline-block border border-[#2c4560] bg-[#0a0e14]/85 px-3.5 py-1.5 text-sm tracking-wider text-[#8ca1b8] tabular-nums"
+          >
+            Deaths:{' '}
+            <span
+              className={
+                deathCount === 0 ? 'text-[#39ff8f]' : 'text-[#e6f1ff]'
+              }
+            >
+              {deathCount}
             </span>
           </p>
         </div>

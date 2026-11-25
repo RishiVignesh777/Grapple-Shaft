@@ -9,6 +9,7 @@ interface PlayingHudProps {
   runTimeSeconds: number;
   shardsCollected: number;
   shardsTotal: number;
+  deathCount: number;
   onToggleMute: () => void;
   onPause: () => void;
 }
@@ -21,6 +22,7 @@ export function PlayingHud({
   runTimeSeconds,
   shardsCollected,
   shardsTotal,
+  deathCount,
   onToggleMute,
   onPause,
 }: PlayingHudProps) {
@@ -91,84 +93,97 @@ export function PlayingHud({
           </div>
         </div>
 
-        {/* Top-right utility controls */}
-        <div className="pointer-events-auto flex items-center gap-3">
-          <span className="font-code hidden text-xs tracking-wider text-[#8ca1b8] sm:inline">
-            P / Esc Pause · M Mute
-          </span>
+        {/* Top-right utility controls & quiet death counter */}
+        <div className="flex flex-col items-end gap-2">
+          <div className="pointer-events-auto flex items-center gap-3">
+            <span className="font-code hidden text-xs tracking-wider text-[#8ca1b8] sm:inline">
+              P / Esc Pause · M Mute
+            </span>
 
-          <button
-            type="button"
-            tabIndex={-1}
-            aria-label={muted ? 'Unmute audio (M)' : 'Mute audio (M)'}
-            title={muted ? 'Unmute (M)' : 'Mute (M)'}
-            onClick={(e) => {
-              e.currentTarget.blur();
-              onToggleMute();
-            }}
-            className="flex h-10 w-10 cursor-pointer items-center justify-center border-2 border-[#2c4560] bg-[#1b2838]/95 text-[#27e0ff] transition-colors duration-150 hover:border-[#27e0ff] hover:bg-[#2c4560] focus-visible:outline-2 focus-visible:outline-[#39ff8f]"
-            style={{ boxShadow: '0 0 0 2px #0a0e14' }}
-          >
-            {muted ? (
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 18 18"
-                fill="none"
-                aria-hidden="true"
-                shapeRendering="crispEdges"
-              >
-                <rect x="2" y="6" width="3" height="6" fill="currentColor" />
-                <rect x="5" y="4" width="2" height="10" fill="currentColor" />
-                <rect x="7" y="2" width="2" height="14" fill="currentColor" />
-                <rect x="11" y="5" width="2" height="2" fill="#ff5a2b" />
-                <rect x="15" y="5" width="2" height="2" fill="#ff5a2b" />
-                <rect x="13" y="7" width="2" height="4" fill="#ff5a2b" />
-                <rect x="11" y="11" width="2" height="2" fill="#ff5a2b" />
-                <rect x="15" y="11" width="2" height="2" fill="#ff5a2b" />
-              </svg>
-            ) : (
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 18 18"
-                fill="none"
-                aria-hidden="true"
-                shapeRendering="crispEdges"
-              >
-                <rect x="2" y="6" width="3" height="6" fill="currentColor" />
-                <rect x="5" y="4" width="2" height="10" fill="currentColor" />
-                <rect x="7" y="2" width="2" height="14" fill="currentColor" />
-                <rect x="11" y="6" width="2" height="6" fill="#39ff8f" />
-                <rect x="14" y="4" width="2" height="10" fill="#39ff8f" />
-              </svg>
-            )}
-          </button>
-
-          <button
-            type="button"
-            tabIndex={-1}
-            aria-label="Pause game (P or Escape)"
-            title="Pause (P / Esc)"
-            onClick={(e) => {
-              e.currentTarget.blur();
-              onPause();
-            }}
-            className="flex h-10 w-10 cursor-pointer items-center justify-center border-2 border-[#2c4560] bg-[#1b2838]/95 text-[#39ff8f] transition-colors duration-150 hover:border-[#39ff8f] hover:bg-[#2c4560] focus-visible:outline-2 focus-visible:outline-[#39ff8f]"
-            style={{ boxShadow: '0 0 0 2px #0a0e14' }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-              shapeRendering="crispEdges"
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label={muted ? 'Unmute audio (M)' : 'Mute audio (M)'}
+              title={muted ? 'Unmute (M)' : 'Mute (M)'}
+              onClick={(e) => {
+                e.currentTarget.blur();
+                onToggleMute();
+              }}
+              className="flex h-10 w-10 cursor-pointer items-center justify-center border-2 border-[#2c4560] bg-[#1b2838]/95 text-[#27e0ff] transition-colors duration-150 hover:border-[#27e0ff] hover:bg-[#2c4560] focus-visible:outline-2 focus-visible:outline-[#39ff8f]"
+              style={{ boxShadow: '0 0 0 2px #0a0e14' }}
             >
-              <rect x="3" y="2" width="3" height="12" fill="currentColor" />
-              <rect x="10" y="2" width="3" height="12" fill="currentColor" />
-            </svg>
-          </button>
+              {muted ? (
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 18 18"
+                  fill="none"
+                  aria-hidden="true"
+                  shapeRendering="crispEdges"
+                >
+                  <rect x="2" y="6" width="3" height="6" fill="currentColor" />
+                  <rect x="5" y="4" width="2" height="10" fill="currentColor" />
+                  <rect x="7" y="2" width="2" height="14" fill="currentColor" />
+                  <rect x="11" y="5" width="2" height="2" fill="#ff5a2b" />
+                  <rect x="15" y="5" width="2" height="2" fill="#ff5a2b" />
+                  <rect x="13" y="7" width="2" height="4" fill="#ff5a2b" />
+                  <rect x="11" y="11" width="2" height="2" fill="#ff5a2b" />
+                  <rect x="15" y="11" width="2" height="2" fill="#ff5a2b" />
+                </svg>
+              ) : (
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 18 18"
+                  fill="none"
+                  aria-hidden="true"
+                  shapeRendering="crispEdges"
+                >
+                  <rect x="2" y="6" width="3" height="6" fill="currentColor" />
+                  <rect x="5" y="4" width="2" height="10" fill="currentColor" />
+                  <rect x="7" y="2" width="2" height="14" fill="currentColor" />
+                  <rect x="11" y="6" width="2" height="6" fill="#39ff8f" />
+                  <rect x="14" y="4" width="2" height="10" fill="#39ff8f" />
+                </svg>
+              )}
+            </button>
+
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label="Pause game (P or Escape)"
+              title="Pause (P / Esc)"
+              onClick={(e) => {
+                e.currentTarget.blur();
+                onPause();
+              }}
+              className="flex h-10 w-10 cursor-pointer items-center justify-center border-2 border-[#2c4560] bg-[#1b2838]/95 text-[#39ff8f] transition-colors duration-150 hover:border-[#39ff8f] hover:bg-[#2c4560] focus-visible:outline-2 focus-visible:outline-[#39ff8f]"
+              style={{ boxShadow: '0 0 0 2px #0a0e14' }}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden="true"
+                shapeRendering="crispEdges"
+              >
+                <rect x="3" y="2" width="3" height="12" fill="currentColor" />
+                <rect x="10" y="2" width="3" height="12" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
+
+          <div
+            data-testid="death-counter"
+            aria-label="Run deaths"
+            className="flex h-7 items-center border border-[#2c4560]/80 bg-[#1b2838]/80 px-2.5"
+            style={{ boxShadow: '0 0 0 1px #0a0e14' }}
+          >
+            <span className="font-code text-xs leading-none tracking-wider text-[#8ca1b8] tabular-nums">
+              Deaths: <span className="text-[#c6d7eb]">{deathCount}</span>
+            </span>
+          </div>
         </div>
       </div>
 
