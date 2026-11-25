@@ -677,6 +677,34 @@ function drawCorridorWorld(
   }
 }
 
+function drawGrappleMotionTrail(
+  ctx: CanvasRenderingContext2D,
+  state: ShellSimulationState,
+  camX: number,
+  camY: number,
+): void {
+  const { width, height } = state.player;
+  for (let i = 0; i < state.grappleTrail.length; i++) {
+    const sample = state.grappleTrail[i];
+    const ratio = Math.max(0, Math.min(1, sample.life / sample.maxLife));
+    if (ratio <= 0) continue;
+
+    const px = Math.round(sample.x - camX);
+    const py = Math.round(sample.y - camY);
+
+    ctx.globalAlpha = 0.24 * ratio;
+    ctx.fillStyle = PALETTE.cyanAccent;
+    ctx.fillRect(px, py, width, height);
+
+    ctx.globalAlpha = 0.16 * ratio;
+    ctx.fillStyle = '#b8f6ff';
+    ctx.fillRect(px + 1, py + 1, width - 2, 2);
+    ctx.fillRect(px + 1, py + 1, 2, height - 2);
+    ctx.fillRect(px + 4, py + 6, width - 8, 3);
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawPlayerSquare(
   ctx: CanvasRenderingContext2D,
   state: ShellSimulationState,
@@ -740,7 +768,8 @@ export function renderShellFrame(
   // 5. Facility sections, platforms, lava pits, spikes, checkpoints, grapple anchors & rope
   drawCorridorWorld(ctx, state, camX, camY, screenState);
 
-  // 6. Player square
+  // 6. Grapple swing cyan afterimage trail & player square
+  drawGrappleMotionTrail(ctx, state, camX, camY);
   drawPlayerSquare(ctx, state, camX, camY);
 
   // 7. Pixel-art landing & grapple spark particles

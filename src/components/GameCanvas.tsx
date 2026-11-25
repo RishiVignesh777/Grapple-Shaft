@@ -278,6 +278,7 @@ export function GameCanvas({
       );
       canvas.dataset.shardsTotal = String(sim.shards.length);
       canvas.dataset.particles = String(sim.particles.length);
+      canvas.dataset.grappleTrailCount = String(sim.grappleTrail.length);
       canvas.dataset.crtShader = crtRenderer ? 'webgl' : 'fallback2d';
       canvas.dataset.runTime = sim.runTimeSeconds.toFixed(2);
     };

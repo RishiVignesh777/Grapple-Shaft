@@ -31,6 +31,9 @@ export const MAX_FRAME_DT = 0.05;
 export const STAR_TILE_WIDTH = 360;
 export const STAR_TILE_HEIGHT = 240;
 export const PANEL_GRID_SIZE = 32;
+export const GRAPPLE_TRAIL_MAX_LIFE = 0.14;
+export const GRAPPLE_TRAIL_INTERVAL = 0.022;
+export const MAX_GRAPPLE_TRAIL_SAMPLES = 7;
 
 const EMPTY_INPUT: PlayerInputState = {
   left: false,
@@ -165,6 +168,8 @@ export function createInitialShellState(): ShellSimulationState {
     particles: [],
     grappleSparkTimer: 0,
     particleSeed: 7331,
+    grappleTrail: [],
+    grappleTrailTimer: 0,
     bounds: level.bounds,
     stars: createStarfield(2026, 48, STAR_TILE_WIDTH, STAR_TILE_HEIGHT),
     starTileWidth: STAR_TILE_WIDTH,
@@ -230,6 +235,9 @@ export function stepShellState(
   if (state.deathFlashTimer > 0) {
     state.deathFlashTimer = Math.max(0, state.deathFlashTimer - dt);
   }
+
+  const preStepX = state.player.x;
+  const preStepY = state.player.y;
 
   const events = stepPlayerPhysics(
     state.player,
@@ -325,6 +333,42 @@ export function stepShellState(
   }
 
   stepParticles(state.particles, dt);
+
+  if (events.died) {
+    state.grappleTrail.length = 0;
+    state.grappleTrailTimer = 0;
+  } else {
+    for (let i = state.grappleTrail.length - 1; i >= 0; i--) {
+      state.grappleTrail[i].life -= dt;
+      if (state.grappleTrail[i].life <= 0) {
+        state.grappleTrail.splice(i, 1);
+      }
+    }
+
+    if (state.grapple.activeAnchorId !== null) {
+      state.grappleTrailTimer -= dt;
+      if (state.grappleTrailTimer <= 0) {
+        state.grappleTrailTimer = GRAPPLE_TRAIL_INTERVAL;
+        const moved = Math.hypot(
+          state.player.x - preStepX,
+          state.player.y - preStepY,
+        );
+        if (moved >= 0.4) {
+          state.grappleTrail.push({
+            x: preStepX,
+            y: preStepY,
+            life: GRAPPLE_TRAIL_MAX_LIFE,
+            maxLife: GRAPPLE_TRAIL_MAX_LIFE,
+          });
+          while (state.grappleTrail.length > MAX_GRAPPLE_TRAIL_SAMPLES) {
+            state.grappleTrail.shift();
+          }
+        }
+      }
+    } else {
+      state.grappleTrailTimer = 0;
+    }
+  }
 
   if (events.died) {
     state.deathCount += 1;

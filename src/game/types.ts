@@ -139,6 +139,13 @@ export interface SparkParticle {
   gravityScale: number;
 }
 
+export interface MotionTrailSample {
+  x: number;
+  y: number;
+  life: number;
+  maxLife: number;
+}
+
 export interface StepEvents {
   died: boolean;
   landed: boolean;
@@ -171,6 +178,8 @@ export interface ShellSimulationState {
   particles: SparkParticle[];
   grappleSparkTimer: number;
   particleSeed: number;
+  grappleTrail: MotionTrailSample[];
+  grappleTrailTimer: number;
   bounds: LevelBounds;
   stars: Star[];
   starTileWidth: number;

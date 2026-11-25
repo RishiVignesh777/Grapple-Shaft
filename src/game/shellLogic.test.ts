@@ -152,4 +152,79 @@ test('deathCount tracks hazard and void deaths during a run and resets to zero o
   assert.equal(restarted.deathCount, 0);
 });
 
+test('grapple motion trail stays empty during normal running and jumping', () => {
+  const state = createInitialShellState();
+  const viewport = computeVirtualViewport(1440, 900);
 
+  for (let i = 0; i < 20; i++) {
+    stepShellState(state, 0.016, 'playing', viewport, {
+      left: false,
+      right: true,
+      jumpJustPressed: i === 5,
+      mouseDown: false,
+      mouseJustPressed: false,
+      mouseWorldX: -9999,
+      mouseWorldY: -9999,
+    });
+    assert.equal(state.grappleTrail.length, 0);
+  }
+});
+
+test('grapple motion trail spawns cyan afterimages while swinging and disappears quickly after release', () => {
+  const state = createInitialShellState();
+  const viewport = computeVirtualViewport(1440, 900);
+  const anchor = state.anchors[0]; // chasm-1 at (1036, 166)
+
+  // Position player within grapple range below chasm-1 with initial forward momentum
+  state.player.x = 950;
+  state.player.y = 220;
+  state.player.vx = 120;
+  state.player.vy = 0;
+  state.player.grounded = false;
+
+  // Attach grapple on frame 1
+  stepShellState(state, 0.016, 'playing', viewport, {
+    left: false,
+    right: true,
+    jumpJustPressed: false,
+    mouseDown: true,
+    mouseJustPressed: true,
+    mouseWorldX: anchor.x,
+    mouseWorldY: anchor.y,
+  });
+  assert.equal(state.grapple.activeAnchorId, anchor.id);
+
+  // Swing for several frames while holding mouse button
+  for (let i = 0; i < 10; i++) {
+    stepShellState(state, 0.016, 'playing', viewport, {
+      left: false,
+      right: true,
+      jumpJustPressed: false,
+      mouseDown: true,
+      mouseJustPressed: false,
+      mouseWorldX: anchor.x,
+      mouseWorldY: anchor.y,
+    });
+  }
+
+  const peakCount = state.grappleTrail.length;
+  assert.ok(
+    peakCount >= 3 && peakCount <= 7,
+    `expected short active swing trail (3..7 samples), got ${peakCount}`,
+  );
+
+  // Release grapple and step ~0.2s — trail must stop growing and expire completely
+  for (let i = 0; i < 12; i++) {
+    stepShellState(state, 0.016, 'playing', viewport, {
+      left: false,
+      right: true,
+      jumpJustPressed: false,
+      mouseDown: false,
+      mouseJustPressed: false,
+      mouseWorldX: anchor.x,
+      mouseWorldY: anchor.y,
+    });
+  }
+  assert.equal(state.grapple.activeAnchorId, null);
+  assert.equal(state.grappleTrail.length, 0);
+});
